@@ -4,11 +4,15 @@ FVP_PROVIDER ?= "fvp-base-a-aem-native"
 FVP_EXE ?= "FVP_Base_RevC-2xAEMvA"
 
 # Network
-FVP_CONFIG[bp.hostbridge.interfaceName]="enp97s0"
-FVP_CONFIG[bp.hostbridge.userNetworking]="1"
+# First Ethernet controller
+FVP_CONFIG[bp.virtio_net.enabled] = "1"
+FVP_CONFIG[bp.virtio_net.hostbridge.interfaceName] = "RedfishHI"
 
-# Ethernet controller
+# Second Ethernet controller
 FVP_CONFIG[bp.smsc_91c111.enabled] = "1"
+FVP_CONFIG[bp.hostbridge.interfaceName] = "BmcNic"
+FVP_CONFIG[bp.hostbridge.userNetworking]="1"
+FVP_CONFIG[bp.hostbridge.userNetPorts] = "4222=22,4223=443,4224=80"
 
 # Disable dc4 device for uart 1-3
 FVP_CONFIG[bp.pl011_uart1.enable_dc4] = "0"
@@ -20,7 +24,6 @@ FVP_CONFIG[cluster0.has_arm_v8-4] = "1"
 FVP_CONFIG[cluster1.has_arm_v8-4] = "1"
 
 # FVP Terminal/console outpot settings
-FVP_CONFIG[bp.hostbridge.userNetPorts] = "4222=22,4223=443,4224=80"
 FVP_CONSOLES[default] = "terminal_0"
 FVP_TERMINALS[bp.terminal_0] ?= "Console"
 FVP_TERMINALS[bp.terminal_1] ?= ""
