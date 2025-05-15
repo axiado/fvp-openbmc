@@ -4,8 +4,8 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 # refer to this layer's README.md
 
 EXTRA_OEMESON:append = " \
-  -Dresponse-time-out=4800 \
-  -Ddbus-timeout-value=10 \
+  -Dresponse-time-out=10000 \
+  -Ddbus-timeout-value=20 \
 "
 
 SRC_URI:append = " file://host_eid "
