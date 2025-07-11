@@ -14,7 +14,7 @@ DEPENDS = " \
     ${@bb.utils.contains('PTEST_ENABLED', '1', 'gtest', '', d)} \
     ${@bb.utils.contains('PTEST_ENABLED', '1', 'gmock', '', d)} \
 "
-SRCREV = "e0218247539e4986196c134b138eef7437d00cd0"
+SRCREV = "faaf40cc86fb72d16f2d77853a74cfc250f51418"
 PV = "1.0+git${SRCPV}"
 
 SRC_URI = "git://git.gitlab.arm.com/server_management/bmcweb.git;branch=fvp_devel;protocol=https"
