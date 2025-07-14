@@ -5,6 +5,7 @@
 
 #include "aspeed-g6.dtsi"
 #include <dt-bindings/gpio/aspeed-gpio.h>
+#include <dt-bindings/i2c/i2c.h>
 
 / {
 	model = "AST2600 EVB";
@@ -243,6 +244,14 @@
 
 &i2c6 {
 	status = "okay";
+
+	mctp-controller;
+	multi-master;
+
+	mctp@10 {
+		compatible = "mctp-i2c-controller";
+		reg = <(0x10 | I2C_OWN_SLAVE_ADDRESS)>;
+	};
 };
 
 &i2c7 {
@@ -286,6 +295,11 @@
 };
 
 &i2c15 {
+	status = "okay";
+};
+
+&i3c1 {
+	mctp-controller;
 	status = "okay";
 };
 
