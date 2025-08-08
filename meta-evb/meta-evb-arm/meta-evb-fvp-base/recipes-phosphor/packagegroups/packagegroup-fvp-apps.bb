@@ -39,4 +39,6 @@ RDEPENDS:${PN}-system = " \
         phosphor-host-postd \
         phosphor-post-code-manager \
         redfish-hi \
+        smbios-mdr \
+        phosphor-ipmi-blobs \
         "
