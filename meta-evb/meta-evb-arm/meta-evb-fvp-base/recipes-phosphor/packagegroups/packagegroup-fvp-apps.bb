@@ -41,4 +41,5 @@ RDEPENDS:${PN}-system = " \
         redfish-hi \
         smbios-mdr \
         phosphor-ipmi-blobs \
+        platform-init \
         "
