@@ -19,9 +19,9 @@ FVP_CONFIG[bp.pl011_uart1.enable_dc4] = "0"
 FVP_CONFIG[bp.pl011_uart2.enable_dc4] = "0"
 FVP_CONFIG[bp.pl011_uart3.enable_dc4] = "0"
 
-# Set the baseline to ARMv8.4, as the default is 8.0.
-FVP_CONFIG[cluster0.has_arm_v8-4] = "1"
-FVP_CONFIG[cluster1.has_arm_v8-4] = "1"
+# Set the baseline to ARMv8.5, as the default is 8.0.
+FVP_CONFIG[cluster0.has_arm_v8-5] = "1"
+FVP_CONFIG[cluster1.has_arm_v8-5] = "1"
 
 # FVP Terminal/console outpot settings
 FVP_CONSOLES[default] = "terminal_0"
