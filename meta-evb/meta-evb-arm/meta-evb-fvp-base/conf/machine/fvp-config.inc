@@ -49,3 +49,6 @@ FVP_CONFIG[bp.mmc.p_mmc_file]="obmc-phosphor-image-fvp.wic"
 # use pad instead of silently truncate emmc image
 FVP_CONFIG[bp.mmc.support_unpadded_images]="1"
 FVP_CONFIG[bp.mmc.diagnostics]="0x1"
+
+# VIRTIO P9
+FVP_CONFIG[bp.virtiop9device.root_path]="/tmp/hostsharedir"
