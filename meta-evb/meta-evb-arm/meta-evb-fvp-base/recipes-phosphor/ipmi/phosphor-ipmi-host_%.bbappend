@@ -13,4 +13,5 @@ EXTRA_OEMESON= " \
 SRC_URI += " \
     file://0001-Support-Redfish-Host-Interface-commands.patch \
     file://0002-Add-IPMI-Arm-OEM-Command.patch \
+    file://0003-serialbridge-Fix-checksum-data-byte-escaping.patch \
 "
