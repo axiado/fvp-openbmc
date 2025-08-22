@@ -1,0 +1,10 @@
+[Unit]
+Description = MCTP Serial binding
+After=obmc-host-already-on@0.target
+BindTo=obmc-host-already-on@0.target
+
+[Service]
+Restart=always
+RemainAfterExit=true
+ExecStart=systemctl start mctpd
+ExecStop=systemctl stop mctpd

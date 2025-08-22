@@ -1,0 +1,16 @@
+[Unit]
+Description=Start Power Off for Chassis%i
+Wants=obmc-power-stop@%i.target
+Before=obmc-power-stop@%i.target
+Wants=obmc-power-stop-pre@%i.target
+After=obmc-power-stop-pre@%i.target
+Conflicts=obmc-chassis-poweron@%i.target
+
+[Service]
+RemainAfterExit=yes
+ExecStartPre=systemctl stop mctpd
+ExecStart=/bin/sh -c "echo 0 > /tmp/hostsharedir/power"
+SyslogIdentifier=obmc-power-stop
+
+[Install]
+WantedBy=obmc-chassis-poweroff@%i.target

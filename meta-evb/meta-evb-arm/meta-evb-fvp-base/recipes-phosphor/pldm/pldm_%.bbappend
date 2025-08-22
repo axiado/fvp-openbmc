@@ -4,7 +4,7 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 # refer to this layer's README.md
 
 EXTRA_OEMESON:append = " \
-  -Dresponse-time-out=10000 \
+  -Dresponse-time-out=20000 \
   -Ddbus-timeout-value=20 \
 "
 
