@@ -5,4 +5,6 @@ RDEPENDS:${PN}-extras:append = " \
   webui-vue \
   phosphor-host-postd \
   phosphor-post-code-manager \
+  phosphor-misc-usb-ctrl  \
+  usb-network \
 "
