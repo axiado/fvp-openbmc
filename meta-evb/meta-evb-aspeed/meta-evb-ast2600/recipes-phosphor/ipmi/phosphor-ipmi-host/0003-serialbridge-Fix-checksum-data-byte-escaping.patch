@@ -1,0 +1,39 @@
+From 71c334aeebe7e7d8cb99cc98475d566c6f2f15a9 Mon Sep 17 00:00:00 2001
+From: John Chung <john.chung@arm.com>
+Date: Wed, 25 Jun 2025 11:27:18 -0500
+Subject: [PATCH] serialbridge: Fix checksum data byte escaping
+
+Checksum in response packet should check for data byte escaping.
+
+Tested with ipmitool.
+
+Upstream-Status: Backport 8846669ca95892dbbb84c1843d495202dc31f668
+
+Change-Id: I6b0fbb635480adfb87d8cbef6feca8bed6213f34
+Signed-off-by: John Chung <john.chung@arm.com>
+---
+ transport/serialbridge/serialcmd.cpp | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/transport/serialbridge/serialcmd.cpp b/transport/serialbridge/serialcmd.cpp
+index ec84f5c..5001595 100644
+--- a/transport/serialbridge/serialcmd.cpp
++++ b/transport/serialbridge/serialcmd.cpp
+@@ -188,13 +188,15 @@ int SerialChannel::write(stdplus::Fd& uart, uint8_t rsAddr, uint8_t rqAddr,
+ 
+         // Assemble connection header and checksum
+         checksum = processEscapedCharacter(responseBuffer, connectionHeader);
+-        responseBuffer.push_back(-checksum); // checksum1
++        checksum = static_cast<uint8_t>(~checksum + 1); // checksum1
++        processEscapedCharacter(responseBuffer, std::vector<uint8_t>{checksum});
+ 
+         // Assemble response message and checksum
+         checksum = processEscapedCharacter(responseBuffer, messageHeader);
+         checksum +=
+             processEscapedCharacter(responseBuffer, std::vector<uint8_t>(data));
+-        responseBuffer.push_back(-checksum); // checksum2
++        checksum = static_cast<uint8_t>(~checksum + 1); // checksum2
++        processEscapedCharacter(responseBuffer, std::vector<uint8_t>{checksum});
+ 
+         // bmStop
+         responseBuffer.push_back(bmStop);
