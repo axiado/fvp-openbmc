@@ -8,6 +8,8 @@ EXTRA_OEMESON:append = " \
   -Ddbus-timeout-value=20 \
 "
 
+PACKAGECONFIG:append = " oem-arm"
+
 SRC_URI:append = " file://host_eid "
 
 SYSTEMD_SERVICE:${PN}:remove = " \

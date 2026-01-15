@@ -28,6 +28,12 @@ PACKAGECONFIG[openpower-dumps-extension] = " \
        -Dopenpower-dumps-extension=enabled, \
        -Dopenpower-dumps-extension=disabled  \
 "
+
+PACKAGECONFIG[arm-dumps-extension] = " \
+       -Darm-dumps-extension=enabled, \
+       -Darm-dumps-extension=disabled  \
+"
+
 PV = "1.0+git${SRCPV}"
 PR = "r1"
 
