@@ -1,0 +1,420 @@
+From 3eec725fd96717610558d611791dedb3ecafa35a Mon Sep 17 00:00:00 2001
+From: Eric Yang <eric.yang.wiwynn@gmail.com>
+Date: Mon, 2 Mar 2026 06:12:24 +0000
+Subject: [PATCH] transport: af-mctp: Fix TID lookup with MCTP_NET_ANY
+
+The pldm_transport_af_mctp_map_tid() API stores TID mappings with
+tid_map[tid].net = MCTP_NET_ANY, but pldm_transport_af_mctp_get_tid()
+requires an exact network match (tid_map[i].net == network). When MCTP
+messages arrive with non-zero network IDs, the lookup fails, causing
+pldmd to crash with "free(): invalid pointer" errors.
+
+Fix this by allowing MCTP_NET_ANY in stored mappings to match any
+incoming network ID, with exact network matches taking precedence over
+MCTP_NET_ANY. This ensures that callers using both map_tid() and
+map_tid_fqe() get correct behavior: specific network mappings are
+preferred, and MCTP_NET_ANY entries serve only as a fallback.
+
+Add af-mctp test infrastructure in dedicated af-mctp-test.c and
+af-mctp-internal.h, keeping test utilities separate from the core
+implementation. tests/transport/af-mctp.cpp verifies MCTP_NET_ANY
+matches any network, that specific network IDs are correctly
+distinguished, and that exact matches take precedence when both mapping
+APIs are used together.
+
+Upstream-Status: Pending
+
+Fixes: 6b8f2646bc2a ("transport: af-mctp: Qualify MCTP TID mapping with target network")
+Change-Id: Iaf9a0e09681dbfd202af747688b160dba1558692
+Signed-off-by: Eric Yang <eric.yang.wiwynn@gmail.com>
+---
+ CHANGELOG.md                     |   1 +
+ src/transport/af-mctp-internal.h |  39 ++++++++++++
+ src/transport/af-mctp-test.c     |  39 ++++++++++++
+ src/transport/af-mctp-test.h     |  26 ++++++++
+ src/transport/af-mctp.c          |  63 ++++++++----------
+ src/transport/meson.build        |   2 +-
+ tests/transport/af-mctp.cpp      | 106 +++++++++++++++++++++++++++++++
+ tests/transport/meson.build      |   1 +
+ 8 files changed, 241 insertions(+), 36 deletions(-)
+ create mode 100644 src/transport/af-mctp-internal.h
+ create mode 100644 src/transport/af-mctp-test.c
+ create mode 100644 src/transport/af-mctp-test.h
+ create mode 100644 tests/transport/af-mctp.cpp
+
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 7e5b117..549bc48 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -90,6 +90,7 @@ Change categories:
+   PLDM_STATE_SET_BOOT_PROG_STATE_PCI_RESORUCE_CONFIG enum value to avoid client
+   breakage
+ - abi: Refresh dumps to capture libpldm++ namespace rework
++- transport: af-mctp: Fix TID lookup with MCTP_NET_ANY
+ 
+ ### Security
+ 
+diff --git a/src/transport/af-mctp-internal.h b/src/transport/af-mctp-internal.h
+new file mode 100644
+index 0000000..09acc80
+--- /dev/null
++++ b/src/transport/af-mctp-internal.h
+@@ -0,0 +1,39 @@
++/* SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later */
++#ifndef LIBPLDM_TRANSPORT_AF_MCTP_INTERNAL_H
++#define LIBPLDM_TRANSPORT_AF_MCTP_INTERNAL_H
++
++#include "responder.h"
++#include "socket.h"
++#include "transport.h"
++
++#include <libpldm/base.h>
++
++#include <linux/mctp.h>
++#include <stdbool.h>
++
++#if !HAVE_STRUCT_MCTP_FQ_ADDR
++struct mctp_fq_addr {
++	unsigned int net;
++	mctp_eid_t eid;
++};
++#endif
++
++struct pldm_transport_af_mctp {
++	struct pldm_transport transport;
++	int socket;
++	struct mctp_fq_addr tid_map[PLDM_MAX_TIDS];
++	struct pldm_socket_sndbuf socket_send_buf;
++	bool bound;
++	struct pldm_responder_cookie cookie_jar;
++};
++
++struct pldm_responder_cookie_af_mctp {
++	struct pldm_responder_cookie req;
++	struct sockaddr_mctp smctp;
++};
++
++int pldm_transport_af_mctp_get_tid(struct pldm_transport_af_mctp *ctx,
++				   uint32_t network, mctp_eid_t eid,
++				   pldm_tid_t *tid);
++
++#endif // LIBPLDM_TRANSPORT_AF_MCTP_INTERNAL_H
+diff --git a/src/transport/af-mctp-test.c b/src/transport/af-mctp-test.c
+new file mode 100644
+index 0000000..1434273
+--- /dev/null
++++ b/src/transport/af-mctp-test.c
+@@ -0,0 +1,39 @@
++/* SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later */
++#include "af-mctp-internal.h"
++#include "af-mctp-test.h"
++
++#include <libpldm/api.h>
++#include <libpldm/transport/af-mctp.h>
++
++#include <errno.h>
++#include <stdlib.h>
++
++LIBPLDM_ABI_TESTING
++int pldm_transport_af_mctp_test_init(struct pldm_transport_af_mctp **ctx)
++{
++	if (!ctx || *ctx) {
++		return -EINVAL;
++	}
++
++	struct pldm_transport_af_mctp *tmp = calloc(1, sizeof(*tmp));
++	if (!tmp) {
++		return -ENOMEM;
++	}
++
++	*ctx = tmp;
++	return 0;
++}
++
++LIBPLDM_ABI_TESTING
++void pldm_transport_af_mctp_test_destroy(struct pldm_transport_af_mctp *ctx)
++{
++	free(ctx);
++}
++
++LIBPLDM_ABI_TESTING
++int pldm_transport_af_mctp_test_lookup_tid(struct pldm_transport_af_mctp *ctx,
++					   uint32_t network, mctp_eid_t eid,
++					   pldm_tid_t *tid)
++{
++	return pldm_transport_af_mctp_get_tid(ctx, network, eid, tid);
++}
+diff --git a/src/transport/af-mctp-test.h b/src/transport/af-mctp-test.h
+new file mode 100644
+index 0000000..86a3ad6
+--- /dev/null
++++ b/src/transport/af-mctp-test.h
+@@ -0,0 +1,26 @@
++/* SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later */
++#ifndef LIBPLDM_TRANSPORT_AF_MCTP_TEST_H
++#define LIBPLDM_TRANSPORT_AF_MCTP_TEST_H
++
++#include <libpldm/base.h>
++
++#include <linux/mctp.h>
++#include <stdint.h>
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++struct pldm_transport_af_mctp;
++
++int pldm_transport_af_mctp_test_init(struct pldm_transport_af_mctp **ctx);
++void pldm_transport_af_mctp_test_destroy(struct pldm_transport_af_mctp *ctx);
++int pldm_transport_af_mctp_test_lookup_tid(struct pldm_transport_af_mctp *ctx,
++					   uint32_t network, mctp_eid_t eid,
++					   pldm_tid_t *tid);
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif // LIBPLDM_TRANSPORT_AF_MCTP_TEST_H
+diff --git a/src/transport/af-mctp.c b/src/transport/af-mctp.c
+index 84d5211..1555040 100644
+--- a/src/transport/af-mctp.c
++++ b/src/transport/af-mctp.c
+@@ -1,10 +1,8 @@
+ /* SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later */
++#include "af-mctp-internal.h"
+ #include "compiler.h"
+ #include "container-of.h"
+ #include "mctp-defines.h"
+-#include "responder.h"
+-#include "socket.h"
+-#include "transport.h"
+ 
+ #include <libpldm/api.h>
+ #include <libpldm/base.h>
+@@ -16,7 +14,6 @@
+ #include <limits.h>
+ #include <linux/mctp.h>
+ #include <poll.h>
+-#include <stdbool.h>
+ #include <stdlib.h>
+ #include <string.h>
+ #include <sys/socket.h>
+@@ -24,32 +21,11 @@
+ #include <sys/un.h>
+ #include <unistd.h>
+ 
+-struct pldm_responder_cookie_af_mctp {
+-	struct pldm_responder_cookie req;
+-	struct sockaddr_mctp smctp;
+-};
+-
+ #define cookie_to_af_mctp(c)                                                   \
+ 	container_of((c), struct pldm_responder_cookie_af_mctp, req)
+ 
+ #define AF_MCTP_NAME "AF_MCTP"
+ 
+-#if !HAVE_STRUCT_MCTP_FQ_ADDR
+-struct mctp_fq_addr {
+-	unsigned int net;
+-	mctp_eid_t eid;
+-};
+-#endif
+-
+-struct pldm_transport_af_mctp {
+-	struct pldm_transport transport;
+-	int socket;
+-	struct mctp_fq_addr tid_map[PLDM_MAX_TIDS];
+-	struct pldm_socket_sndbuf socket_send_buf;
+-	bool bound;
+-	struct pldm_responder_cookie cookie_jar;
+-};
+-
+ #define transport_to_af_mctp(ptr)                                              \
+ 	container_of(ptr, struct pldm_transport_af_mctp, transport)
+ 
+@@ -82,22 +58,39 @@ static int pldm_transport_af_mctp_lookup_fqe(struct pldm_transport_af_mctp *ctx,
+ 	return 0;
+ }
+ 
+-static int pldm_transport_af_mctp_get_tid(struct pldm_transport_af_mctp *ctx,
+-					  uint32_t network, mctp_eid_t eid,
+-					  pldm_tid_t *tid)
++static int pldm_transport_af_mctp_find_tid(struct pldm_transport_af_mctp *ctx,
++					   uint32_t network, mctp_eid_t eid,
++					   pldm_tid_t *tid)
+ {
+-	if (network != 0 && eid != 0) {
+-		for (int i = 0; i < PLDM_MAX_TIDS; i++) {
+-			if (ctx->tid_map[i].net == network &&
+-			    ctx->tid_map[i].eid == eid) {
+-				*tid = i;
+-				return 0;
+-			}
++	for (int i = 0; i < PLDM_MAX_TIDS; i++) {
++		if (ctx->tid_map[i].net == network &&
++		    ctx->tid_map[i].eid == eid) {
++			*tid = i;
++			return 0;
+ 		}
+ 	}
+ 	return -1;
+ }
+ 
++int pldm_transport_af_mctp_get_tid(struct pldm_transport_af_mctp *ctx,
++				   uint32_t network, mctp_eid_t eid,
++				   pldm_tid_t *tid)
++{
++	int rc;
++
++	if (network == 0 || eid == 0) {
++		return -1;
++	}
++
++	/* Exact network match takes precedence over MCTP_NET_ANY */
++	rc = pldm_transport_af_mctp_find_tid(ctx, network, eid, tid);
++	if (!rc) {
++		return 0;
++	}
++
++	return pldm_transport_af_mctp_find_tid(ctx, MCTP_NET_ANY, eid, tid);
++}
++
+ LIBPLDM_ABI_STABLE
+ int pldm_transport_af_mctp_map_tid(struct pldm_transport_af_mctp *ctx,
+ 				   pldm_tid_t tid, mctp_eid_t eid)
+diff --git a/src/transport/meson.build b/src/transport/meson.build
+index c9312d3..f619fa2 100644
+--- a/src/transport/meson.build
++++ b/src/transport/meson.build
+@@ -2,7 +2,7 @@ if cc.has_header('poll.h')
+     if cc.has_header('sys/socket.h')
+         libpldm_sources += files('socket.c')
+         if cc.has_header('linux/mctp.h')
+-            libpldm_sources += files('af-mctp.c')
++            libpldm_sources += files('af-mctp-test.c', 'af-mctp.c')
+         endif
+         if cc.has_header('sys/un.h')
+             libpldm_sources += files('mctp-demux.c')
+diff --git a/tests/transport/af-mctp.cpp b/tests/transport/af-mctp.cpp
+new file mode 100644
+index 0000000..7e6861d
+--- /dev/null
++++ b/tests/transport/af-mctp.cpp
+@@ -0,0 +1,106 @@
++#include <libpldm/transport/af-mctp.h>
++
++#include "transport/af-mctp-test.h"
++
++#include <gtest/gtest.h>
++
++/* map_tid() with MCTP_NET_ANY matches any network during lookup */
++TEST(AfMctpTidLookup, any_network_match)
++{
++    struct pldm_transport_af_mctp* ctx = nullptr;
++    constexpr uint32_t network = 7;
++    constexpr pldm_tid_t tid = 1;
++    constexpr mctp_eid_t eid = 8;
++    constexpr mctp_eid_t unmappedEid = 42;
++    pldm_tid_t found1 = 0;
++    pldm_tid_t found2 = 0;
++
++    ASSERT_EQ(pldm_transport_af_mctp_test_init(&ctx), 0);
++    ASSERT_EQ(pldm_transport_af_mctp_map_tid(ctx, tid, eid), 0);
++
++    /* Lookup with arbitrary network succeeds against MCTP_NET_ANY entry */
++    EXPECT_EQ(
++        pldm_transport_af_mctp_test_lookup_tid(ctx, network, eid, &found1), 0);
++    EXPECT_EQ(found1, tid);
++
++    /* Same network but different EID must not match */
++    EXPECT_NE(pldm_transport_af_mctp_test_lookup_tid(ctx, network, unmappedEid,
++                                                     &found2),
++              0);
++
++    pldm_transport_af_mctp_test_destroy(ctx);
++}
++
++/* map_tid_fqe() entries only match their exact network ID */
++TEST(AfMctpTidLookup, network_specific_match)
++{
++    struct pldm_transport_af_mctp* ctx = nullptr;
++    constexpr uint32_t network3 = 13;
++    constexpr uint32_t network1 = 5;
++    constexpr uint32_t network2 = 9;
++    constexpr mctp_eid_t eid = 0x12;
++    constexpr pldm_tid_t tid1 = 1;
++    constexpr pldm_tid_t tid2 = 2;
++    pldm_tid_t found1 = 0;
++    pldm_tid_t found2 = 0;
++    pldm_tid_t found3 = 0;
++
++    ASSERT_EQ(pldm_transport_af_mctp_test_init(&ctx), 0);
++    ASSERT_EQ(pldm_transport_af_mctp_map_tid_fqe(ctx, tid1, network1, eid), 0);
++    ASSERT_EQ(pldm_transport_af_mctp_map_tid_fqe(ctx, tid2, network2, eid), 0);
++
++    /* Each network resolves to its own TID */
++    EXPECT_EQ(
++        pldm_transport_af_mctp_test_lookup_tid(ctx, network1, eid, &found1), 0);
++    EXPECT_EQ(found1, tid1);
++
++    EXPECT_EQ(
++        pldm_transport_af_mctp_test_lookup_tid(ctx, network2, eid, &found2), 0);
++    EXPECT_EQ(found2, tid2);
++
++    /* Unmapped network must fail */
++    EXPECT_NE(
++        pldm_transport_af_mctp_test_lookup_tid(ctx, network3, eid, &found3), 0);
++
++    pldm_transport_af_mctp_test_destroy(ctx);
++}
++
++/* When both APIs coexist, exact network takes precedence over MCTP_NET_ANY */
++TEST(AfMctpTidLookup, exact_network_preferred_over_any_net)
++{
++    struct pldm_transport_af_mctp* ctx = nullptr;
++    constexpr uint32_t network = 7;
++    constexpr uint32_t otherNetwork = 99;
++    constexpr mctp_eid_t eid = 8;
++    constexpr mctp_eid_t unmappedEid = 42;
++    constexpr pldm_tid_t anyNetTid = 1;
++    constexpr pldm_tid_t exactTid = 5;
++    pldm_tid_t found1 = 0;
++    pldm_tid_t found2 = 0;
++    pldm_tid_t found3 = 0;
++
++    ASSERT_EQ(pldm_transport_af_mctp_test_init(&ctx), 0);
++
++    /* MCTP_NET_ANY mapping has lower TID index, so it is scanned first */
++    ASSERT_EQ(pldm_transport_af_mctp_map_tid(ctx, anyNetTid, eid), 0);
++    ASSERT_EQ(pldm_transport_af_mctp_map_tid_fqe(ctx, exactTid, network, eid),
++              0);
++
++    /* Exact network match must take precedence over MCTP_NET_ANY */
++    EXPECT_EQ(
++        pldm_transport_af_mctp_test_lookup_tid(ctx, network, eid, &found1), 0);
++    EXPECT_EQ(found1, exactTid);
++
++    /* Non-matching network still resolves via the MCTP_NET_ANY entry */
++    EXPECT_EQ(
++        pldm_transport_af_mctp_test_lookup_tid(ctx, otherNetwork, eid, &found2),
++        0);
++    EXPECT_EQ(found2, anyNetTid);
++
++    /* Correct network but wrong EID must not match any entry */
++    EXPECT_NE(pldm_transport_af_mctp_test_lookup_tid(ctx, network, unmappedEid,
++                                                     &found3),
++              0);
++
++    pldm_transport_af_mctp_test_destroy(ctx);
++}
+diff --git a/tests/transport/meson.build b/tests/transport/meson.build
+index 6fb2b98..2e4c4d5 100644
+--- a/tests/transport/meson.build
++++ b/tests/transport/meson.build
+@@ -1,4 +1,5 @@
+ tests += [
++    'transport/af-mctp',
+     'transport/transport',
+     'transport/send_recv_one',
+     'transport/send_recv_timeout',
