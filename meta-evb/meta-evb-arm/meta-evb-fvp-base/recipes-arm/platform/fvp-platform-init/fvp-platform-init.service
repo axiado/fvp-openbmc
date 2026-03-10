@@ -9,7 +9,7 @@ After = xyz.openbmc_project.State.Host@0.service
 Restart=no
 RemainAfterExit=true
 Type=oneshot
-ExecStart=/usr/sbin/platform-init.sh
+ExecStart=/usr/sbin/fvp-platform-init.sh
 
 [Install]
 WantedBy=multi-user.target

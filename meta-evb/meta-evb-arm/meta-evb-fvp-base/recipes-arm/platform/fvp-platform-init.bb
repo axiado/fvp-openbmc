@@ -12,21 +12,21 @@ RDEPENDS:${PN} += "libsystemd"
 RDEPENDS:${PN} += "bash"
 
 SRC_URI += " \
-    file://platform-init.service \
-    file://platform-init.sh \
+    file://fvp-platform-init.service \
+    file://fvp-platform-init.sh \
     file://host_check.sh \
 "
 
 S = "${UNPACKDIR}"
 
 SYSTEMD_PACKAGES = "${PN}"
-SYSTEMD_SERVICE:${PN} = "platform-init.service"
+SYSTEMD_SERVICE:${PN} = "fvp-platform-init.service"
 
 do_install() {
     install -d ${D}${sbindir}
     install -m 0755 ${UNPACKDIR}/*.sh ${D}${sbindir}/
 
     install -d ${D}${systemd_unitdir}/system/
-    install -m 0644 ${UNPACKDIR}/platform-init.service ${D}${systemd_unitdir}/system
+    install -m 0644 ${UNPACKDIR}/fvp-platform-init.service ${D}${systemd_unitdir}/system
 }
 
