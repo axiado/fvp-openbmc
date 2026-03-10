@@ -6,17 +6,13 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=e3fc50a88d0a364313df4b21ef20c29e"
 DEPENDS += "sdbusplus"
 DEPENDS += "phosphor-logging"
 DEPENDS += "phosphor-dbus-interfaces"
-DEPENDS += "boost"
-DEPENDS += "nss-pam-ldapd"
 DEPENDS += "systemd"
-SRCREV = "c4183b84ba512735b5b32c88f81b77091b0fd5cd"
+SRCREV = "c4b2ffb5c22403bb3cc6cf973c72903360e5514d"
 PV = "1.0+git${SRCPV}"
 PR = "r1"
 
 SRC_URI = "git://github.com/openbmc/phosphor-user-manager;branch=master;protocol=https"
 SRC_URI += "file://upgrade_hostconsole_group.sh"
-
-S = "${WORKDIR}/git"
 
 inherit meson pkgconfig
 inherit obmc-phosphor-dbus-service
@@ -24,9 +20,12 @@ inherit useradd
 
 EXTRA_OEMESON = "-Dtests=disabled"
 
-PACKAGECONFIG ?= "root-user-mgmt"
+PACKAGECONFIG ?= " \
+    root-user-mgmt\
+    ${@bb.utils.filter('DISTRO_FEATURES', 'ldap', d)} \
+    "
 PACKAGECONFIG[root-user-mgmt] = "-Droot_user_mgmt=enabled, -Droot_user_mgmt=disabled"
-
+PACKAGECONFIG[ldap] = "-Dldap=enabled, -Dldap=disabled, nss-pam-ldapd"
 
 do_install:append() {
   install -d ${D}${libexecdir}

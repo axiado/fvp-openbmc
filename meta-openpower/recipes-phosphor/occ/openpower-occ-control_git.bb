@@ -23,6 +23,7 @@ DEPENDS += " \
         phosphor-logging \
         phosphor-dbus-interfaces \
         systemd \
+        libpldm \
         ${PYTHON_PN}-native \
         ${PYTHON_PN}-pyyaml-native \
         ${PYTHON_PN}-setuptools-native \
@@ -37,7 +38,6 @@ EXTRA_OEMESON = " \
              -Dps-derating-factor=${POWER_SUPPLY_DERATING_FACTOR} \
              -Dtests=disabled \
              "
-EXTRA_OEMESON:append = "${@bb.utils.contains('MACHINE_FEATURES', 'i2c-occ', ' -Di2c-occ=enabled', '', d)}"
 
 OCC_ENABLE = "enable"
 OCC_DISABLE = "disable"
@@ -61,8 +61,6 @@ OCC_DISABLE_INSTFMT = "op-occ-disable@{1}.service"
 HOST_ERROR_FMT = "../${OCC_DISABLE_TMPL}:${HOST_ERROR_TGTFMT}.wants/${OCC_DISABLE_INSTFMT}"
 
 SYSTEMD_LINK:${PN} += "${@compose_list(d, 'HOST_ERROR_FMT', 'HOST_ERROR_TARGETS', 'OBMC_HOST_INSTANCES')}"
-
-S = "${WORKDIR}/git"
 
 # Remove packages not required for native build
 DEPENDS:remove:class-native = " \

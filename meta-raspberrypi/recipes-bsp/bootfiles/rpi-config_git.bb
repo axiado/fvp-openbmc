@@ -12,19 +12,17 @@ SRC_URI = "git://github.com/Evilpaul/RPi-config.git;protocol=https;branch=master
            file://0001-config.txt-reintroduce-start_x.patch \
           "
 
-S = "${WORKDIR}/git"
-
 PR = "r5"
 
 INHIBIT_DEFAULT_DEPS = "1"
 
-PITFT="${@bb.utils.contains("MACHINE_FEATURES", "pitft", "1", "0", d)}"
-PITFT22="${@bb.utils.contains("MACHINE_FEATURES", "pitft22", "1", "0", d)}"
-PITFT28r="${@bb.utils.contains("MACHINE_FEATURES", "pitft28r", "1", "0", d)}"
-PITFT28c="${@bb.utils.contains("MACHINE_FEATURES", "pitft28c", "1", "0", d)}"
-PITFT35r="${@bb.utils.contains("MACHINE_FEATURES", "pitft35r", "1", "0", d)}"
+PITFT = "${@bb.utils.contains("MACHINE_FEATURES", "pitft", "1", "0", d)}"
+PITFT22 = "${@bb.utils.contains("MACHINE_FEATURES", "pitft22", "1", "0", d)}"
+PITFT28r = "${@bb.utils.contains("MACHINE_FEATURES", "pitft28r", "1", "0", d)}"
+PITFT28c = "${@bb.utils.contains("MACHINE_FEATURES", "pitft28c", "1", "0", d)}"
+PITFT35r = "${@bb.utils.contains("MACHINE_FEATURES", "pitft35r", "1", "0", d)}"
 
-VC4GRAPHICS="${@bb.utils.contains("MACHINE_FEATURES", "vc4graphics", "1", "0", d)}"
+VC4GRAPHICS = "${@bb.utils.contains("MACHINE_FEATURES", "vc4graphics", "1", "0", d)}"
 VC4DTBO ?= "vc4-kms-v3d"
 GPIO_IR ?= "18"
 GPIO_IR_TX ?= "17"
@@ -35,7 +33,7 @@ CAN1_INTERRUPT_PIN ?= "24"
 
 ENABLE_UART ??= ""
 
-WM8960="${@bb.utils.contains("MACHINE_FEATURES", "wm8960", "1", "0", d)}"
+WM8960 = "${@bb.utils.contains("MACHINE_FEATURES", "wm8960", "1", "0", d)}"
 
 GPIO_SHUTDOWN_PIN ??= ""
 
@@ -277,7 +275,6 @@ do_deploy() {
         echo "# Enable CAN" >>$CONFIG
         echo "dtoverlay=mcp2515-can0,oscillator=${CAN_OSCILLATOR},interrupt=${CAN0_INTERRUPT_PIN}" >>$CONFIG
     fi
-
 
     if [ "${ENABLE_GPIO_SHUTDOWN}" = "1" ]; then
         if ([ "${ENABLE_I2C}" = "1" ] || [ "${PITFT}" = "1" ]) && [ -z "${GPIO_SHUTDOWN_PIN}" ]; then

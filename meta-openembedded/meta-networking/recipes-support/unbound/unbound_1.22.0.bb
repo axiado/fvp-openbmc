@@ -11,6 +11,7 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=5308494bc0590c0cb036afd781d78f06"
 
 SRC_URI = "git://github.com/NLnetLabs/unbound.git;protocol=https;branch=master \
            file://run-ptest \
+           file://0001-fix-build-with-gcc-15-Wbuiltin-declaration-mismatch-.patch \
            "
 
 # 17 commits after 1.22.0 tag:
@@ -25,7 +26,6 @@ inherit autotools pkgconfig systemd update-rc.d ptest
 DEPENDS = "openssl libtool-native bison-native expat"
 RDEPENDS:${PN} = "bash openssl-bin daemonize"
 
-S = "${WORKDIR}/git"
 
 EXTRA_OECONF = "--with-libexpat=${STAGING_EXECPREFIXDIR} \
                 --disable-rpath --with-ssl=${STAGING_EXECPREFIXDIR} \

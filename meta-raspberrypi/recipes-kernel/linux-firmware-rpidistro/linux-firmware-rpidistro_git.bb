@@ -20,12 +20,16 @@ SRC_URI = "git://github.com/RPi-Distro/firmware-nonfree;branch=bookworm;protocol
 "
 SRCREV = "4b356e134e8333d073bd3802d767a825adec3807"
 PV = "20230625-2+rpt3"
-S = "${WORKDIR}/git"
 
 inherit allarch
 
 do_configure[noexec] = "1"
 do_compile[noexec] = "1"
+
+# The minimal firmware doesn't work with Raspberry Pi 5, so default to the
+# standard firmware
+CYFMAC43455_SDIO_FIRMWARE ??= "minimal"
+CYFMAC43455_SDIO_FIRMWARE:raspberrypi5 ??= "standard"
 
 do_install() {
     install -d ${D}${nonarch_base_libdir}/firmware/brcm ${D}${nonarch_base_libdir}/firmware/cypress
@@ -43,7 +47,7 @@ do_install() {
     done
 
     cp -R --no-dereference --preserve=mode,links -v debian/config/brcm80211/cypress/* ${D}${nonarch_base_libdir}/firmware/cypress/
-    ln -s cyfmac43455-sdio-minimal.bin ${D}${nonarch_base_libdir}/firmware/cypress/cyfmac43455-sdio.bin
+    ln -s cyfmac43455-sdio-${CYFMAC43455_SDIO_FIRMWARE}.bin ${D}${nonarch_base_libdir}/firmware/cypress/cyfmac43455-sdio.bin
 
     rm ${D}${nonarch_base_libdir}/firmware/cypress/README.txt
 }

@@ -1,4 +1,4 @@
-From e20eec12279e18fa98d2839eddebb1c9c2efa9fb Mon Sep 17 00:00:00 2001
+From 0d06bed995761204990ad28ef08e0cd8b8430fda Mon Sep 17 00:00:00 2001
 From: John Chung <john.chung@arm.com>
 Date: Thu, 13 Mar 2025 17:18:18 -0500
 Subject: [PATCH] Add IPMI Arm OEM Command
@@ -162,10 +162,10 @@ index f4c657f..43e0a84 100644
  // OEM and non-standard commands should be defined where they are used
  namespace app
 diff --git a/meson.build b/meson.build
-index 525d8d1..3532cc0 100644
+index 932c6ed..1db40f3 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -298,6 +298,7 @@ libipmi20_src = [
+@@ -299,6 +299,7 @@ libipmi20_src = [
      'sensordatahandler.cpp',
      'user_channel/channelcommands.cpp',
      'redfishhandler.cpp',

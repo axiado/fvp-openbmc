@@ -16,7 +16,7 @@ SRC_URI = "https://lib.openmpt.org/files/libopenmpt/src/libopenmpt-${PV}+release
           "
 SRC_URI[sha256sum] = "093713c1c1024f4f10c4779a66ceb2af51fb7c908a9e99feb892d04019220ba1"
 
-S = "${WORKDIR}/libopenmpt-${PV}+release.autotools"
+S = "${UNPACKDIR}/libopenmpt-${PV}+release.autotools"
 
 inherit autotools pkgconfig ptest
 
@@ -36,7 +36,7 @@ PACKAGECONFIG[mpg123]             = "--with-mpg123,--without-mpg123,mpg123"
 PACKAGECONFIG[ogg]                = "--with-ogg,--without-ogg,libogg"
 PACKAGECONFIG[portaudio]          = "--with-portaudio,--without-portaudio,portaudio-v19"
 PACKAGECONFIG[pulseaudio]         = "--with-pulseaudio,--without-pulseaudio,pulseaudio"
-PACKAGECONFIG[sdl2]               = "--with-sdl2,--without-sdl2,libsdl2"
+PACKAGECONFIG[sdl2]               = "--with-sdl2,--without-sdl2,virtual/libsdl2"
 PACKAGECONFIG[sndfile]            = "--with-sndfile,--without-sndfile,libsndfile1"
 PACKAGECONFIG[vorbis]             = "--with-vorbis,--without-vorbis,libvorbis"
 PACKAGECONFIG[vorbisfile]         = "--with-vorbisfile,--without-vorbisfile,libvorbis"

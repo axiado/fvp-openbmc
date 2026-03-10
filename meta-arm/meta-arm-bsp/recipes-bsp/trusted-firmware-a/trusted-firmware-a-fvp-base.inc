@@ -4,10 +4,10 @@
 # Armv8-A Base Platform FVP
 #
 
-FILESEXTRAPATHS:prepend := "${THISDIR}/files/:${THISDIR}/files/fvp-base"
+FILESEXTRAPATHS:prepend := "${THISDIR}/files/:${THISDIR}/files/fvp-base:"
 
 SRC_URI:append = " \
-    file://optee_spmc_maifest.dts;subdir=git/plat/arm/board/fvp/fdts \
+    file://optee_spmc_maifest.dts;subdir=${BB_GIT_DEFAULT_DESTSUFFIX}/plat/arm/board/fvp/fdts \
 "
 
 # OP-TEE SPMC related configuration
@@ -45,6 +45,9 @@ BL32 = "${@oe.utils.conditional('SPMC_IS_OPTEE', '1',\
         '', d)}"
 EXTRA_OEMAKE += "${@oe.utils.conditional('SPMC_IS_OPTEE', '1', \
                 ' BL32=${BL32}', '', d)}"
+
+# Enable memory safety in TF-A if machine supports it.
+EXTRA_OEMAKE += "${@bb.utils.contains('MACHINE_FEATURES', 'arm-branch-protection', ' BRANCH_PROTECTION=1', '', d)}"
 
 # Generic configuration
 COMPATIBLE_MACHINE = "fvp-base"

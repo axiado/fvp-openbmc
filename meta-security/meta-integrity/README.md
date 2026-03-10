@@ -45,7 +45,9 @@ yocto-patches@yoctoproject.org mailing list. When submitting patches that way,
 make sure to copy the maintainer and add a "[meta-integrity]"
 prefix to the subject of the mails.
 
-Maintainer: Armin Kuster <akuster808@gmail.com>
+Maintainers:
+Scott Murray <scott.murray@konsulko.com>
+Marta Rybczynska <rybczynska@gmail.com>
 
 
 Table of Contents
@@ -97,6 +99,7 @@ the image, enable image signing in the local.conf like this:
     IMA_EVM_PRIVKEY = "${IMA_EVM_KEY_DIR}/privkey_ima.pem"
     IMA_EVM_EVMCTL_KEY_PASSWORD = "<optional private key password>"
     IMA_EVM_PRIVKEY_KEYID_OPT = "<options to use while signing>"
+    IMA_EVM_IMA_XATTR_OPT = "<whether to sign or hash for IMA>"
     IMA_EVM_X509 = "${IMA_EVM_KEY_DIR}/x509_ima.der"
     IMA_EVM_ROOT_CA = "${IMA_EVM_KEY_DIR}/ima-local-ca.pem"
 

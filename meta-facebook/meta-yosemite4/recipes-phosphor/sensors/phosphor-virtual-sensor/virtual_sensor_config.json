@@ -596,7 +596,7 @@
                 }
             ]
         },
-        "Expression": "maxIgnoreNaN((MB_FIO_TEMP_10 - (Fan_PWM == 100 ? -0.2 : (Fan_PWM >=90 ? -0.1 : (Fan_PWM >=70 ? 0.4 : (Fan_PWM >=50 ? 0.5 : (Fan_PWM >=30 ? 0.6 : 0)))))), 0)"
+        "Expression": "maxIgnoreNaN((MB_FIO_TEMP_10 - ((Fan_PWM == 100) * -1.0 + (Fan_PWM >= 90 and Fan_PWM < 100) * -1.6 + (Fan_PWM >= 80 and Fan_PWM < 90) * -1.3 + (Fan_PWM >= 70 and Fan_PWM < 80) * -1.3 + (Fan_PWM >= 60 and Fan_PWM < 70) * -1.2 + (Fan_PWM >= 50 and Fan_PWM < 60) * -1.0 + (Fan_PWM >= 40 and Fan_PWM < 50) * -1.0 + (Fan_PWM >= 30 and Fan_PWM < 40) * 0.1 + (Fan_PWM >= 20 and Fan_PWM < 30) * 0.2 + (Fan_PWM >= 10 and Fan_PWM < 20) * 0.6)), 0)"
     },
     {
         "Desc": {
@@ -632,7 +632,7 @@
                 }
             ]
         },
-        "Expression": "maxIgnoreNaN((MB_FIO_TEMP_20 - (Fan_PWM == 100 ? -0.2 : (Fan_PWM >=90 ? -0.1 : (Fan_PWM >=70 ? 0.4 : (Fan_PWM >=50 ? 0.5 : (Fan_PWM >=30 ? 0.6 : 0)))))), 0)"
+        "Expression": "maxIgnoreNaN((MB_FIO_TEMP_20 - ((Fan_PWM == 100) * -1.0 + (Fan_PWM >= 90 and Fan_PWM < 100) * -1.6 + (Fan_PWM >= 80 and Fan_PWM < 90) * -1.3 + (Fan_PWM >= 70 and Fan_PWM < 80) * -1.3 + (Fan_PWM >= 60 and Fan_PWM < 70) * -1.2 + (Fan_PWM >= 50 and Fan_PWM < 60) * -1.0 + (Fan_PWM >= 40 and Fan_PWM < 50) * -1.0 + (Fan_PWM >= 30 and Fan_PWM < 40) * 0.1 + (Fan_PWM >= 20 and Fan_PWM < 30) * 0.2 + (Fan_PWM >= 10 and Fan_PWM < 20) * 0.6)), 0)"
     },
     {
         "Desc": {
@@ -668,7 +668,7 @@
                 }
             ]
         },
-        "Expression": "maxIgnoreNaN((MB_FIO_TEMP_30 - (Fan_PWM == 100 ? -0.2 : (Fan_PWM >=90 ? -0.1 : (Fan_PWM >=70 ? 0.4 : (Fan_PWM >=50 ? 0.5 : (Fan_PWM >=30 ? 0.6 : 0)))))), 0)"
+        "Expression": "maxIgnoreNaN((MB_FIO_TEMP_30 - ((Fan_PWM == 100) * -1.0 + (Fan_PWM >= 90 and Fan_PWM < 100) * -1.6 + (Fan_PWM >= 80 and Fan_PWM < 90) * -1.3 + (Fan_PWM >= 70 and Fan_PWM < 80) * -1.3 + (Fan_PWM >= 60 and Fan_PWM < 70) * -1.2 + (Fan_PWM >= 50 and Fan_PWM < 60) * -1.0 + (Fan_PWM >= 40 and Fan_PWM < 50) * -1.0 + (Fan_PWM >= 30 and Fan_PWM < 40) * 0.1 + (Fan_PWM >= 20 and Fan_PWM < 30) * 0.2 + (Fan_PWM >= 10 and Fan_PWM < 20) * 0.6)), 0)"
     },
     {
         "Desc": {
@@ -704,7 +704,7 @@
                 }
             ]
         },
-        "Expression": "maxIgnoreNaN((MB_FIO_TEMP_40 - (Fan_PWM == 100 ? -0.2 : (Fan_PWM >=90 ? -0.1 : (Fan_PWM >=70 ? 0.4 : (Fan_PWM >=50 ? 0.5 : (Fan_PWM >=30 ? 0.6 : 0)))))), 0)"
+        "Expression": "maxIgnoreNaN((MB_FIO_TEMP_40 - ((Fan_PWM == 100) * -1.0 + (Fan_PWM >= 90 and Fan_PWM < 100) * -1.6 + (Fan_PWM >= 80 and Fan_PWM < 90) * -1.3 + (Fan_PWM >= 70 and Fan_PWM < 80) * -1.3 + (Fan_PWM >= 60 and Fan_PWM < 70) * -1.2 + (Fan_PWM >= 50 and Fan_PWM < 60) * -1.0 + (Fan_PWM >= 40 and Fan_PWM < 50) * -1.0 + (Fan_PWM >= 30 and Fan_PWM < 40) * 0.1 + (Fan_PWM >= 20 and Fan_PWM < 30) * 0.2 + (Fan_PWM >= 10 and Fan_PWM < 20) * 0.6)), 0)"
     },
     {
         "Desc": {
@@ -740,7 +740,7 @@
                 }
             ]
         },
-        "Expression": "maxIgnoreNaN((MB_FIO_TEMP_50 - (Fan_PWM == 100 ? -0.2 : (Fan_PWM >=90 ? -0.1 : (Fan_PWM >=70 ? 0.4 : (Fan_PWM >=50 ? 0.5 : (Fan_PWM >=30 ? 0.6 : 0)))))), 0)"
+        "Expression": "maxIgnoreNaN((MB_FIO_TEMP_50 - ((Fan_PWM == 100) * -1.0 + (Fan_PWM >= 90 and Fan_PWM < 100) * -1.6 + (Fan_PWM >= 80 and Fan_PWM < 90) * -1.3 + (Fan_PWM >= 70 and Fan_PWM < 80) * -1.3 + (Fan_PWM >= 60 and Fan_PWM < 70) * -1.2 + (Fan_PWM >= 50 and Fan_PWM < 60) * -1.0 + (Fan_PWM >= 40 and Fan_PWM < 50) * -1.0 + (Fan_PWM >= 30 and Fan_PWM < 40) * 0.1 + (Fan_PWM >= 20 and Fan_PWM < 30) * 0.2 + (Fan_PWM >= 10 and Fan_PWM < 20) * 0.6)), 0)"
     },
     {
         "Desc": {
@@ -776,7 +776,7 @@
                 }
             ]
         },
-        "Expression": "maxIgnoreNaN((MB_FIO_TEMP_60 - (Fan_PWM == 100 ? -0.2 : (Fan_PWM >=90 ? -0.1 : (Fan_PWM >=70 ? 0.4 : (Fan_PWM >=50 ? 0.5 : (Fan_PWM >=30 ? 0.6 : 0)))))), 0)"
+        "Expression": "maxIgnoreNaN((MB_FIO_TEMP_60 - ((Fan_PWM == 100) * -1.0 + (Fan_PWM >= 90 and Fan_PWM < 100) * -1.6 + (Fan_PWM >= 80 and Fan_PWM < 90) * -1.3 + (Fan_PWM >= 70 and Fan_PWM < 80) * -1.3 + (Fan_PWM >= 60 and Fan_PWM < 70) * -1.2 + (Fan_PWM >= 50 and Fan_PWM < 60) * -1.0 + (Fan_PWM >= 40 and Fan_PWM < 50) * -1.0 + (Fan_PWM >= 30 and Fan_PWM < 40) * 0.1 + (Fan_PWM >= 20 and Fan_PWM < 30) * 0.2 + (Fan_PWM >= 10 and Fan_PWM < 20) * 0.6)), 0)"
     },
     {
         "Desc": {
@@ -812,7 +812,7 @@
                 }
             ]
         },
-        "Expression": "maxIgnoreNaN((MB_FIO_TEMP_70 - (Fan_PWM == 100 ? -0.2 : (Fan_PWM >=90 ? -0.1 : (Fan_PWM >=70 ? 0.4 : (Fan_PWM >=50 ? 0.5 : (Fan_PWM >=30 ? 0.6 : 0)))))), 0)"
+        "Expression": "maxIgnoreNaN((MB_FIO_TEMP_70 - ((Fan_PWM == 100) * -1.0 + (Fan_PWM >= 90 and Fan_PWM < 100) * -1.6 + (Fan_PWM >= 80 and Fan_PWM < 90) * -1.3 + (Fan_PWM >= 70 and Fan_PWM < 80) * -1.3 + (Fan_PWM >= 60 and Fan_PWM < 70) * -1.2 + (Fan_PWM >= 50 and Fan_PWM < 60) * -1.0 + (Fan_PWM >= 40 and Fan_PWM < 50) * -1.0 + (Fan_PWM >= 30 and Fan_PWM < 40) * 0.1 + (Fan_PWM >= 20 and Fan_PWM < 30) * 0.2 + (Fan_PWM >= 10 and Fan_PWM < 20) * 0.6)), 0)"
     },
     {
         "Desc": {
@@ -848,7 +848,7 @@
                 }
             ]
         },
-        "Expression": "maxIgnoreNaN((MB_FIO_TEMP_80 - (Fan_PWM == 100 ? -0.2 : (Fan_PWM >=90 ? -0.1 : (Fan_PWM >=70 ? 0.4 : (Fan_PWM >=50 ? 0.5 : (Fan_PWM >=30 ? 0.6 : 0)))))), 0)"
+        "Expression": "maxIgnoreNaN((MB_FIO_TEMP_80 - ((Fan_PWM == 100) * -1.0 + (Fan_PWM >= 90 and Fan_PWM < 100) * -1.6 + (Fan_PWM >= 80 and Fan_PWM < 90) * -1.3 + (Fan_PWM >= 70 and Fan_PWM < 80) * -1.3 + (Fan_PWM >= 60 and Fan_PWM < 70) * -1.2 + (Fan_PWM >= 50 and Fan_PWM < 60) * -1.0 + (Fan_PWM >= 40 and Fan_PWM < 50) * -1.0 + (Fan_PWM >= 30 and Fan_PWM < 40) * 0.1 + (Fan_PWM >= 20 and Fan_PWM < 30) * 0.2 + (Fan_PWM >= 10 and Fan_PWM < 20) * 0.6)), 0)"
     },
     {
         "Desc": {
@@ -1726,7 +1726,7 @@
                 }
             ]
         },
-        "Expression": "hsc_48V0_power + hsc_48V1_power - hsc_slot1_power - hsc_slot2_power - hsc_slot3_power - hsc_slot4_power - hsc_slot5_power - hsc_slot6_power - hsc_slot7_power - hsc_slot8_power"
+        "Expression": "ifNan(hsc_48V0_power, 0) + ifNan(hsc_48V1_power, 0) - ifNan(hsc_slot1_power, 0) - ifNan(hsc_slot2_power, 0) - ifNan(hsc_slot3_power, 0) - ifNan(hsc_slot4_power, 0) - ifNan(hsc_slot5_power, 0) - ifNan(hsc_slot6_power, 0) - ifNan(hsc_slot7_power, 0) - ifNan(hsc_slot8_power, 0)"
     },
     {
         "Desc": {
@@ -2039,5 +2039,77 @@
             ]
         },
         "Expression": "hsc_output_curr * hsc_output_voltage"
+    },
+    {
+        "Desc": {
+          "Name": "VIRTUAL_NIC0_TEMP_C",
+          "SensorType": "temperature"
+        },
+        "Params": {
+          "DbusParam": [
+            {
+              "ParamName": "NIC_TEMP_C",
+              "Desc": {
+                "Name": "NIC0_TEMP_C",
+                "SensorType": "temperature"
+              }
+            }
+          ]
+        },
+        "Expression": "NIC_TEMP_C == NIC_TEMP_C ? NIC_TEMP_C : 0"
+    },
+    {
+        "Desc": {
+          "Name": "VIRTUAL_NIC1_TEMP_C",
+          "SensorType": "temperature"
+        },
+        "Params": {
+          "DbusParam": [
+            {
+              "ParamName": "NIC_TEMP_C",
+              "Desc": {
+                "Name": "NIC1_TEMP_C",
+                "SensorType": "temperature"
+              }
+            }
+          ]
+        },
+        "Expression": "NIC_TEMP_C == NIC_TEMP_C ? NIC_TEMP_C : 0"
+    },
+    {
+        "Desc": {
+          "Name": "VIRTUAL_NIC2_TEMP_C",
+          "SensorType": "temperature"
+        },
+        "Params": {
+          "DbusParam": [
+            {
+              "ParamName": "NIC_TEMP_C",
+              "Desc": {
+                "Name": "NIC2_TEMP_C",
+                "SensorType": "temperature"
+              }
+            }
+          ]
+        },
+        "Expression": "NIC_TEMP_C == NIC_TEMP_C ? NIC_TEMP_C : 0"
+    },
+    {
+        "Desc": {
+          "Name": "VIRTUAL_NIC3_TEMP_C",
+          "SensorType": "temperature"
+        },
+        "Params": {
+          "DbusParam": [
+            {
+              "ParamName": "NIC_TEMP_C",
+              "Desc": {
+                "Name": "NIC3_TEMP_C",
+                "SensorType": "temperature"
+              }
+            }
+          ]
+        },
+        "Expression": "NIC_TEMP_C == NIC_TEMP_C ? NIC_TEMP_C : 0"
     }
 ]

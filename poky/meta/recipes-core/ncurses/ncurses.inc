@@ -28,6 +28,9 @@ ENABLE_WIDEC ?= "true"
 # _GNU_SOURCE is required for widec stuff and is not detected automatically
 CPPFLAGS += "-D_GNU_SOURCE"
 
+# Check if we still need it when next release (6.6) happens
+CFLAGS += "-std=gnu17"
+
 # natives don't generally look in base_libdir
 base_libdir:class-native = "${libdir}"
 
@@ -172,7 +175,6 @@ do_install() {
         oe_runmake -C narrowc ${_install_cfgs} \
                 install.data
 
-
         ! ${ENABLE_WIDEC} || \
             oe_runmake -C widec ${_install_cfgs} ${_install_opts}
 
@@ -259,7 +261,6 @@ python populate_packages:prepend () {
     if libdir is not base_libdir:
         do_split_packages(d, base_libdir, r'^lib(.*)\.so\..*', pnbase, 'ncurses %s library', prepend=True, extra_depends = '', allow_links=True)
 }
-
 
 inherit update-alternatives
 

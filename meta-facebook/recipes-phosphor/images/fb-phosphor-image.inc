@@ -1,5 +1,4 @@
 IMAGE_FEATURES:remove = "\
-    obmc-net-ipmi \
     obmc-user-mgmt-ldap \
     ssh-server-dropbear \
     "
@@ -36,6 +35,6 @@ OBMC_IMAGE_EXTRA_INSTALL:append:mf-fb-fixed-nic = " \
     reconfig-interface-duid-ll \
     "
 
-IMAGE_LINGUAS="en-us"
+IMAGE_LINGUAS = "en-us"
 
 include recipes-phosphor/images/fb-${MACHINE}-phosphor-image.inc

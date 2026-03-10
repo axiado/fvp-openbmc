@@ -20,7 +20,6 @@ SRCREV = "5ebe92156143a341ab7b14bf76560d30093cfc54"
 SRC_URI = "git://github.com/Reference-LAPACK/lapack.git;protocol=https;branch=master \
            ${@bb.utils.contains('PTEST_ENABLED', '1', 'file://run-ptest', '', d)} \
           "
-S = "${WORKDIR}/git"
 
 PACKAGECONFIG ?= ""
 PACKAGECONFIG[lapacke] = "-DLAPACKE=ON,-DLAPACKE=OFF"
@@ -88,7 +87,8 @@ do_install_ptest () {
     rsync -a ${B}/LAPACKE ${D}${PTEST_PATH} \
           --exclude CMakeFiles \
           --exclude cmake_install.cmake \
-          --exclude Makefile
+          --exclude Makefile \
+          --exclude lapacke.pc
     cp -r ${B}/bin ${D}${PTEST_PATH}
     cp -r ${B}/lapack_testing.py ${D}${PTEST_PATH}
     cp ${B}/CTestTestfile.cmake ${D}${PTEST_PATH}
@@ -100,3 +100,6 @@ do_install_ptest () {
     sed -i -e 's#${PYTHON}#/usr/bin/python3#g' `find ${D}${PTEST_PATH} -name CTestTestfile.cmake`
     sed -i -e 's#${WORKDIR}##g' `find ${D}${PTEST_PATH} -name CTestTestfile.cmake`
 }
+
+# It needs fortran compiler and we do not enable fortran with clang yet
+TOOLCHAIN = "gcc"

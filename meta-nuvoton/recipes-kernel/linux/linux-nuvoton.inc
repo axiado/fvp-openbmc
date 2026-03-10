@@ -4,7 +4,9 @@ LICENSE = "GPL-2.0-only"
 
 PROVIDES += "virtual/kernel"
 
-KCONFIG_MODE="--alldefconfig"
+DEPENDS += "u-boot-tools-native"
+
+KCONFIG_MODE = "--alldefconfig"
 
 KSRC ?= "git://github.com/openbmc/linux;protocol=https;branch=${KBRANCH}"
 SRC_URI = "${KSRC}"

@@ -11,12 +11,15 @@ SRCBRANCH ?= "master"
 SRCREV = "dac03d5e4102080a8f3ef274a6a6583455962095"
 SRC_URI = "git://git@github.com/RidgeRun/gstd-1.x.git;protocol=https;branch=${SRCBRANCH} \
            file://0001-gstd-Remove-redundant-rpaths.patch"
-S = "${WORKDIR}/git"
 
 # Remove the +really when upstream version is > 1.0
 PV = "1.0+really0.15.2"
 
 GTKDOC_MESON_OPTION = "enable-gtk-doc"
+
+# Documentation doesn't currently build:
+# gtkdoc-mkhtml: error: unrecognized arguments: ../gstd-docs.xml
+GTKDOC_ENABLED = "False"
 
 inherit meson pkgconfig gettext gtk-doc python3native python3-dir python3targetconfig
 

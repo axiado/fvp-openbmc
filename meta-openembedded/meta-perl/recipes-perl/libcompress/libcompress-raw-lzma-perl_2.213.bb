@@ -13,7 +13,7 @@ SRC_URI[sha256sum] = "6b979a8347701ced3ac26123d428c1f202b7999850444da19c4aedbb7c
 
 DEPENDS += "xz"
 
-S = "${WORKDIR}/Compress-Raw-Lzma-${PV}"
+S = "${UNPACKDIR}/Compress-Raw-Lzma-${PV}"
 
 inherit cpan
 
@@ -21,8 +21,8 @@ RDEPENDS:${PN} += "\
     perl-module-universal \
 "
 
-export LIBLZMA_INCLUDE="-I${STAGING_DIR_HOST}${includedir}"
-export LIBLZMA_LIB="-I${STAGING_DIR_HOST}${libdir}"
+export LIBLZMA_INCLUDE = "-I${STAGING_DIR_HOST}${includedir}"
+export LIBLZMA_LIB = "-I${STAGING_DIR_HOST}${libdir}"
 
 do_compile() {
 	export LIBC="$(find ${STAGING_DIR_TARGET}/${base_libdir}/ -name 'libc-*.so')"

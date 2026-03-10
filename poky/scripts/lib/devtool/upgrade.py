@@ -188,9 +188,9 @@ def _extract_new_source(newpv, srctree, no_patch, srcrev, srcbranch, branch, kee
     if uri.startswith('git://') or uri.startswith('gitsm://'):
         __run('git fetch')
         __run('git checkout %s' % rev)
-        __run('git tag -f devtool-base-new')
+        __run('git tag -f --no-sign devtool-base-new')
         __run('git submodule update --recursive')
-        __run('git submodule foreach \'git tag -f devtool-base-new\'')
+        __run('git submodule foreach \'git tag -f --no-sign devtool-base-new\'')
         (stdout, _) = __run('git submodule --quiet foreach \'echo $sm_path\'')
         paths += [os.path.join(srctree, p) for p in stdout.splitlines()]
         checksums = {}
@@ -257,7 +257,7 @@ def _extract_new_source(newpv, srctree, no_patch, srcrev, srcbranch, branch, kee
         useroptions = []
         oe.patch.GitApplyTree.gitCommandUserOptions(useroptions, d=rd)
         __run('git %s commit -q -m "Commit of upstream changes at version %s" --allow-empty' % (' '.join(useroptions), newpv))
-        __run('git tag -f devtool-base-%s' % newpv)
+        __run('git tag -f --no-sign devtool-base-%s' % newpv)
 
     revs = {}
     for path in paths:
@@ -571,7 +571,7 @@ def upgrade(args, config, basepath, workspace):
         else:
             srctree = standard.get_default_srctree(config, pn)
 
-        srctree_s = standard.get_real_srctree(srctree, rd.getVar('S'), rd.getVar('WORKDIR'))
+        srctree_s = standard.get_real_srctree(srctree, rd.getVar('S'), rd.getVar('UNPACKDIR'))
 
         # try to automatically discover latest version and revision if not provided on command line
         if not args.version and not args.srcrev:
@@ -670,7 +670,7 @@ def check_upgrade_status(args, config, basepath, workspace):
         currents = [r for r in recipegroup if r['status'] == 'MATCH']
         if len(upgrades) > 1:
             print("These recipes need to be upgraded together {")
-        for r in upgrades:
+        for r in sorted(upgrades, key=lambda r:r['pn']):
             _print_status(r)
         if len(upgrades) > 1:
             print("}")

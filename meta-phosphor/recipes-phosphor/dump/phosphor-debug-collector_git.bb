@@ -16,7 +16,7 @@ DEPENDS += " \
         ${PYTHON_PN}-mako-native \
         nlohmann-json \
 "
-PACKAGECONFIG ??= "${@bb.utils.contains_any('DISTRO_FEATURES', \
+PACKAGECONFIG ??= "xz ${@bb.utils.contains_any('DISTRO_FEATURES', \
          'obmc-ubi-fs phosphor-mmc obmc-static-norootfs', '', 'jffs-workaround', d)}"
 PACKAGECONFIG[jffs-workaround] = "-Djffs-workaround=enabled, \
         -Djffs-workaround=disabled"
@@ -34,6 +34,15 @@ PACKAGECONFIG[arm-dumps-extension] = " \
        -Darm-dumps-extension=disabled  \
 "
 
+PACKAGECONFIG[xz] = "-Ddump-compression-algorithm=xz,,,,,gzip zstd"
+PACKAGECONFIG[gzip] = "-Ddump-compression-algorithm=gzip,,,,,xz zstd"
+PACKAGECONFIG[zstd] = "-Ddump-compression-algorithm=zstd,,,,zstd,xz gzip"
+
+PACKAGECONFIG[dump-rotate-config] = " \
+      -Ddump-rotate-config=enabled, \
+      -Ddump-rotate-config=disabled \
+"
+
 PV = "1.0+git${SRCPV}"
 PR = "r1"
 
@@ -43,7 +52,6 @@ SYSTEMD_PACKAGES = "${PN}-monitor"
 SYSTEMD_SUBSTITUTIONS += "BMC_DUMP_PATH:${bmc_dump_path}:${MGR_SVC}"
 SYSTEMD_SERVICE:${PN}-monitor += "obmc-dump-monitor.service"
 SYSTEMD_SERVICE:${PN}-monitor += "ramoops-monitor.service"
-S = "${WORKDIR}/git"
 
 inherit pkgconfig meson \
         obmc-phosphor-dbus-service \
@@ -74,19 +82,20 @@ RDEPENDS:${PN}-dreport += " \
         ${VIRTUAL-RUNTIME_base-utils} \
         bash \
         xz \
+        ${@bb.utils.filter('PACKAGECONFIG', 'zstd', d)} \
 "
 RDEPENDS:${PN}-scripts += " \
         bash \
 "
 
 FILES:${PN}-manager += " \
-    ${bindir}/phosphor-dump-manager \
+    ${libexecdir}/phosphor-debug-collector/phosphor-dump-manager \
     ${bindir}/phosphor-offload-handler \
     ${exec_prefix}/lib/tmpfiles.d/coretemp.conf \
     ${datadir}/dump/ \
     "
-FILES:${PN}-monitor += "${bindir}/phosphor-dump-monitor"
-FILES:${PN}-monitor += "${bindir}/phosphor-ramoops-monitor"
+FILES:${PN}-monitor += "${libexecdir}/phosphor-debug-collector/phosphor-dump-monitor"
+FILES:${PN}-monitor += "${libexecdir}/phosphor-debug-collector/phosphor-ramoops-monitor"
 FILES:${PN}-dreport += "${bindir}/dreport"
 FILES:${PN}-scripts += "${dreport_dir}"
 

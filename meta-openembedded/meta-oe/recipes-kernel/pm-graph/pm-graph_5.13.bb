@@ -9,7 +9,6 @@ SRCREV = "0987732b013936ad771334f51cba31c453c8a9c9"
 SRC_URI = "git://github.com/intel/pm-graph.git;branch=master;protocol=https \
            file://0001-Makefile-fix-multilib-build-failure.patch \
 "
-S = "${WORKDIR}/git"
 
 # Apart from the listed RDEPENDS, analyze-suspend depends on some features
 # provided by the kernel. These options are:
@@ -19,7 +18,7 @@ S = "${WORKDIR}/git"
 #   - CONFIG_FUNCTION_TRACER=y
 #   - CONFIG_FUNCTION_GRAPH_TRACER=y
 
-COMPATIBLE_HOST='(i.86|x86_64).*'
+COMPATIBLE_HOST = '(i.86|x86_64).*'
 EXTRA_OEMAKE = "PREFIX=${prefix} DESTDIR=${D} LIBDIR=${libdir} BASELIB=${baselib}"
 
 do_install() {

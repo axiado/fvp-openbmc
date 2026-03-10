@@ -25,6 +25,7 @@ PTESTS_FAST = "\
     gdk-pixbuf \
     glib-networking \
     gzip \
+    icu \
     json-c \
     json-glib \
     libconvert-asn1-perl \
@@ -78,16 +79,16 @@ PTESTS_FAST = "\
     python3-uritools \
     python3-wcwidth \
     python3-webcolors \
+    python3-wheel \
     qemu \
     quilt \
+    rpm-sequoia \
     sed \
     slang \
     wayland \
     xz \
     zlib \
 "
-PTESTS_FAST:append:libc-glibc = " glibc-y2038-tests"
-PTESTS_PROBLEMS:remove:libc-glibc = "glibc-y2038-tests"
 PTESTS_FAST:remove:mips64 = "qemu"
 PTESTS_PROBLEMS:append:mips64 = " qemu"
 PTESTS_FAST:remove:riscv32 = "qemu"
@@ -99,6 +100,7 @@ PTESTS_SLOW = "\
     coreutils \
     curl \
     dbus \
+    dosfstools \
     e2fsprogs \
     elfutils \
     gettext \
@@ -109,6 +111,7 @@ PTESTS_SLOW = "\
     libevent \
     libgcrypt \
     libmodule-build-perl \
+    libpng \
     libseccomp \
     lttng-tools \
     lz4 \
@@ -120,6 +123,7 @@ PTESTS_SLOW = "\
     python3-cffi \
     python3-click \
     python3-cryptography \
+    python3-numpy \
     python3-xmltodict \
     strace \
     tar \
@@ -135,6 +139,10 @@ PTESTS_SLOW:remove:riscv32 = "lttng-tools strace "
 PTESTS_PROBLEMS:append:riscv32 = " lttng-tools strace"
 PTESTS_SLOW:append:libc-musl = " libc-test"
 
+# These tests don't yet pass for riscv64
+PTESTS_SLOW:remove:riscv64 = "tcl tcl8 python3-cffi strace lttng-tools python3-numpy perl"
+PTESTS_PROBLEMS:append:riscv64 = " tcl tcl8 python3-cffi strace lttng-tools python3-numpy perl"
+
 #    ruby \ # Timeout
 #    rt-tests \ # Needs to be checked whether it runs at all
 #    bash \ # Test outcomes are non-deterministic by design
@@ -143,7 +151,6 @@ PTESTS_SLOW:append:libc-musl = " libc-test"
 #    libpam \ # Needs pam DISTRO_FEATURE
 #    mdadm \ # tests are flaky in AB.
 #    numactl \ # qemu not (yet) configured for numa; all tests are skipped
-#    python3-numpy \ # requires even more RAM and (possibly) disk space; multiple failures
 
 PTESTS_PROBLEMS = "\
     ruby \
@@ -155,5 +162,4 @@ PTESTS_PROBLEMS = "\
     mdadm \
     numactl \
     python3-license-expression \
-    python3-numpy \
 "

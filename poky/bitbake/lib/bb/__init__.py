@@ -9,11 +9,11 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-__version__ = "2.9.1"
+__version__ = "2.15.1"
 
 import sys
-if sys.version_info < (3, 8, 0):
-    raise RuntimeError("Sorry, python 3.8.0 or later is required for this version of bitbake")
+if sys.version_info < (3, 9, 0):
+    raise RuntimeError("Sorry, python 3.9.0 or later is required for this version of bitbake")
 
 if sys.version_info < (3, 10, 0):
     # With python 3.8 and 3.9, we see errors of "libgcc_s.so.1 must be installed for pthread_cancel to work"
@@ -37,6 +37,34 @@ class BBHandledException(Exception):
 import os
 import logging
 from collections import namedtuple
+import multiprocessing as mp
+
+# Python 3.14 changes the default multiprocessing context from "fork" to
+# "forkserver". However, bitbake heavily relies on "fork" behavior to
+# efficiently pass data to the child processes. Places that need this should do:
+#   from bb import multiprocessing
+# in place of
+#   import multiprocessing
+
+class MultiprocessingContext(object):
+    """
+    Multiprocessing proxy object that uses the "fork" context for a property if
+    available, otherwise goes to the main multiprocessing module. This allows
+    it to be a drop-in replacement for the multiprocessing module, but use the
+    fork context
+    """
+    def __init__(self):
+        super().__setattr__("_ctx", mp.get_context("fork"))
+
+    def __getattr__(self, name):
+        if hasattr(self._ctx, name):
+            return getattr(self._ctx, name)
+        return getattr(mp, name)
+
+    def __setattr__(self, name, value):
+        raise AttributeError(f"Unable to set attribute {name}")
+
+multiprocessing = MultiprocessingContext()
 
 
 class NullHandler(logging.Handler):
@@ -129,9 +157,25 @@ sys.modules['bb.fetch'] = sys.modules['bb.fetch2']
 
 # Messaging convenience functions
 def plain(*args):
+    """
+    Prints a message at "plain" level (higher level than a ``bb.note()``).
+
+    Arguments:
+
+    -  ``args``: one or more strings to print.
+    """
     mainlogger.plain(''.join(args))
 
 def debug(lvl, *args):
+    """
+    Prints a debug message.
+
+    Arguments:
+
+    -  ``lvl``: debug level. Higher value increases the debug level
+       (determined by ``bitbake -D``).
+    -  ``args``: one or more strings to print.
+    """
     if isinstance(lvl, str):
         mainlogger.warning("Passed invalid debug level '%s' to bb.debug", lvl)
         args = (lvl,) + args
@@ -139,33 +183,81 @@ def debug(lvl, *args):
     mainlogger.bbdebug(lvl, ''.join(args))
 
 def note(*args):
+    """
+    Prints a message at "note" level.
+
+    Arguments:
+
+    -  ``args``: one or more strings to print.
+    """
     mainlogger.info(''.join(args))
 
-#
-# A higher prioity note which will show on the console but isn't a warning
-#
-# Something is happening the user should be aware of but they probably did
-# something to make it happen
-#
 def verbnote(*args):
+    """
+    A higher priority note which will show on the console but isn't a warning.
+
+    Use in contexts when something is happening the user should be aware of but
+    they probably did something to make it happen.
+
+    Arguments:
+
+    -  ``args``: one or more strings to print.
+    """
     mainlogger.verbnote(''.join(args))
 
 #
 # Warnings - things the user likely needs to pay attention to and fix
 #
 def warn(*args):
+    """
+    Prints a warning message.
+
+    Arguments:
+
+    -  ``args``: one or more strings to print.
+    """
     mainlogger.warning(''.join(args))
 
 def warnonce(*args):
+    """
+    Prints a warning message like ``bb.warn()``, but only prints the message
+    once.
+
+    Arguments:
+
+    -  ``args``: one or more strings to print.
+    """
     mainlogger.warnonce(''.join(args))
 
 def error(*args, **kwargs):
+    """
+    Prints an error message.
+
+    Arguments:
+
+    -  ``args``: one or more strings to print.
+    """
     mainlogger.error(''.join(args), extra=kwargs)
 
 def erroronce(*args):
+    """
+    Prints an error message like ``bb.error()``, but only prints the message
+    once.
+
+    Arguments:
+
+    -  ``args``: one or more strings to print.
+    """
     mainlogger.erroronce(''.join(args))
 
 def fatal(*args, **kwargs):
+    """
+    Prints an error message and stops the BitBake execution.
+
+    Arguments:
+
+    -  ``args``: one or more strings to print.
+    """
     mainlogger.critical(''.join(args), extra=kwargs)
     raise BBHandledException()
 
@@ -194,7 +286,6 @@ def deprecated(func, name=None, advice=""):
 # For compatibility
 def deprecate_import(current, modulename, fromlist, renames = None):
     """Import objects from one module into another, wrapping them with a DeprecationWarning"""
-    import sys
 
     module = __import__(modulename, fromlist = fromlist)
     for position, objname in enumerate(fromlist):

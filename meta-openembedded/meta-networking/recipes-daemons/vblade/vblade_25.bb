@@ -16,11 +16,10 @@ SRC_URI = "git://github.com/OpenAoE/vblade;branch=master;protocol=https \
            file://volatiles.99_vblade \
           "
 
-S = "${WORKDIR}/git"
 
 UPSTREAM_CHECK_URI = "https://github.com/OpenAoE/vblade/archive/"
 
-inherit autotools-brokensep update-rc.d systemd
+inherit update-rc.d systemd
 
 do_install() {
     install -D -m 0755 ${S}/vblade ${D}/${sbindir}/vblade

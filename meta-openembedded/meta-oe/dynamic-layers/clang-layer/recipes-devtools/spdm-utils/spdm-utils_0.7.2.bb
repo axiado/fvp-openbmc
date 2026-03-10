@@ -9,14 +9,13 @@ LIC_FILES_CHKSUM = "\
 inherit cargo cargo-update-recipe-crates pkgconfig
 
 export BINDGEN_EXTRA_CLANG_ARGS
-BINDGEN_EXTRA_CLANG_ARGS = "--sysroot=${WORKDIR}/recipe-sysroot -I${WORKDIR}/recipe-sysroot/usr/include"
+BINDGEN_EXTRA_CLANG_ARGS = "--sysroot=${STAGING_DIR_HOST} -I${STAGING_INCDIR}"
 
 SRC_URI += "git://github.com/westerndigitalcorporation/spdm-utils.git;protocol=https;branch=master"
 
 include spdm-utils-crates.inc
 
 SRCREV = "f67ac9e00b79f603ecbbd29928a4ecc3dec5abd5"
-S = "${WORKDIR}/git"
 
 # bindgen-cli comes from meta-clang and depends on libclang
 DEPENDS += "libspdm udev bindgen-cli-native pciutils"

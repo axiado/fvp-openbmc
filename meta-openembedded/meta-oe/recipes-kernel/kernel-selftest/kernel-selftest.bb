@@ -2,9 +2,11 @@ SUMMARY = "Kernel selftest for Linux"
 DESCRIPTION = "Kernel selftest for Linux"
 LICENSE = "GPL-2.0-only"
 
-LIC_FILES_CHKSUM = "file://${UNPACKDIR}/COPYING;md5=bbea815ee2795b2f4230826c0c6b8814"
+LIC_FILES_CHKSUM = "file://COPYING;md5=bbea815ee2795b2f4230826c0c6b8814"
 
 DEPENDS = "rsync-native llvm-native"
+
+S = "${UNPACKDIR}"
 
 # for musl libc
 SRC_URI:append:libc-musl = "\
@@ -42,8 +44,6 @@ do_patch[depends] += "virtual/kernel:do_shared_workdir"
 do_compile[depends] += "virtual/kernel:do_install"
 
 inherit linux-kernel-base module-base kernel-arch ptest siteinfo
-
-S = "${WORKDIR}/${BP}"
 
 DEBUG_PREFIX_MAP:remove = "-fcanon-prefix-map"
 
@@ -97,6 +97,12 @@ either install it and add it to HOSTTOOLS, or add clang-native from meta-clang t
     sed -i -e '/mrecord-mcount/d' ${S}/Makefile
     sed -i -e '/Wno-alloc-size-larger-than/d' ${S}/Makefile
     sed -i -e '/Wno-alloc-size-larger-than/d' ${S}/scripts/Makefile.*
+    
+    # Add kernel headers to CFLAGS to fix PTP selftest compilation
+    # Required for PTP_MASK_CLEAR_ALL and PTP_MASK_EN_SINGLE definitions
+    # introduced in kernel v6.7 (commit c5a445b)
+    export CFLAGS="${CFLAGS} -I${STAGING_KERNEL_BUILDDIR}/usr/include"
+    
     oe_runmake -C ${S}/tools/testing/selftests TARGETS="${TEST_LIST}"
 }
 
@@ -106,10 +112,6 @@ do_install() {
         sed -i -e '1s,#!.*python3,#! /usr/bin/env python3,' ${D}/usr/kernel-selftest/bpf/test_offload.py
     fi
     chown root:root  -R ${D}/usr/kernel-selftest
-}
-
-do_configure() {
-    install -D -m 0644 ${UNPACKDIR}/COPYING ${S}/COPYING
 }
 
 do_patch[prefuncs] += "copy_kselftest_source_from_kernel remove_unrelated"
@@ -142,7 +144,7 @@ do_configure[dirs] = "${S}"
 
 PACKAGE_ARCH = "${MACHINE_ARCH}"
 
-INHIBIT_PACKAGE_DEBUG_SPLIT="1"
+INHIBIT_PACKAGE_DEBUG_SPLIT = "1"
 FILES:${PN} += "/usr/kernel-selftest"
 
 RDEPENDS:${PN} += "python3 perl perl-module-io-handle"

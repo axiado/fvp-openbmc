@@ -11,23 +11,24 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=d2572d98547d43906b53615f856a8c2d \
 
 # Dependencies from perfetto/tools/install-build-deps
 SRC_URI:append = " \
-           git://github.com/protocolbuffers/protobuf.git;branch=main;protocol=https;destsuffix=git/buildtools/protobuf;name=protobuf \
-           git://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxx.git;protocol=https;destsuffix=git/buildtools/libcxx;branch=main;name=libcxx \
-           git://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxxabi.git;protocol=https;destsuffix=git/buildtools/libcxxabi;branch=main;name=libcxxabi \
-           git://chromium.googlesource.com/external/github.com/llvm/llvm-project/libunwind.git;protocol=https;destsuffix=git/buildtools/libunwind;branch=main;name=libunwind \
-           git://android.googlesource.com/platform/system/libbase.git;branch=master;protocol=https;destsuffix=git/buildtools/android-libbase;name=libbase \
-           git://android.googlesource.com/platform/system/unwinding.git;branch=master;protocol=https;destsuffix=git/buildtools/android-unwinding;name=unwinding \
-           git://android.googlesource.com/platform/system/logging.git;branch=master;protocol=https;destsuffix=git/buildtools/android-logging;name=logging \
-           git://android.googlesource.com/platform/system/libprocinfo.git;branch=master;protocol=https;destsuffix=git/buildtools/android-libprocinfo;name=libprocinfo \
-           git://android.googlesource.com/platform/system/core.git;branch=master;protocol=https;destsuffix=git/buildtools/android-core;name=core \
-           git://android.googlesource.com/platform/bionic.git;branch=master;protocol=https;destsuffix=git/buildtools/bionic;name=bionic \
-           git://android.googlesource.com/platform/external/zlib.git;branch=master;protocol=https;destsuffix=git/buildtools/zlib;name=zlib \
-           git://android.googlesource.com/platform/external/lzma.git;branch=master;protocol=https;destsuffix=git/buildtools/lzma;name=lzma \
-           git://android.googlesource.com/platform/external/zstd.git;branch=master;protocol=https;destsuffix=git/buildtools/zstd;name=zstd \
-           https://storage.googleapis.com/perfetto/gn-linux64-1968-0725d782;subdir=git/buildtools/;name=gn \
+           git://github.com/protocolbuffers/protobuf.git;branch=main;protocol=https;destsuffix=${BB_GIT_DEFAULT_DESTSUFFIX}/buildtools/protobuf;name=protobuf \
+           git://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxx.git;protocol=https;destsuffix=${BB_GIT_DEFAULT_DESTSUFFIX}/buildtools/libcxx;branch=main;name=libcxx \
+           git://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxxabi.git;protocol=https;destsuffix=${BB_GIT_DEFAULT_DESTSUFFIX}/buildtools/libcxxabi;branch=main;name=libcxxabi \
+           git://chromium.googlesource.com/external/github.com/llvm/llvm-project/libunwind.git;protocol=https;destsuffix=${BB_GIT_DEFAULT_DESTSUFFIX}/buildtools/libunwind;branch=main;name=libunwind \
+           git://android.googlesource.com/platform/system/libbase.git;branch=master;protocol=https;destsuffix=${BB_GIT_DEFAULT_DESTSUFFIX}/buildtools/android-libbase;name=libbase \
+           git://android.googlesource.com/platform/system/unwinding.git;branch=master;protocol=https;destsuffix=${BB_GIT_DEFAULT_DESTSUFFIX}/buildtools/android-unwinding;name=unwinding \
+           git://android.googlesource.com/platform/system/logging.git;branch=master;protocol=https;destsuffix=${BB_GIT_DEFAULT_DESTSUFFIX}/buildtools/android-logging;name=logging \
+           git://android.googlesource.com/platform/system/libprocinfo.git;branch=master;protocol=https;destsuffix=${BB_GIT_DEFAULT_DESTSUFFIX}/buildtools/android-libprocinfo;name=libprocinfo \
+           git://android.googlesource.com/platform/system/core.git;branch=master;protocol=https;destsuffix=${BB_GIT_DEFAULT_DESTSUFFIX}/buildtools/android-core;name=core \
+           git://android.googlesource.com/platform/bionic.git;branch=master;protocol=https;destsuffix=${BB_GIT_DEFAULT_DESTSUFFIX}/buildtools/bionic;name=bionic \
+           git://android.googlesource.com/platform/external/zlib.git;branch=master;protocol=https;destsuffix=${BB_GIT_DEFAULT_DESTSUFFIX}/buildtools/zlib;name=zlib \
+           git://android.googlesource.com/platform/external/lzma.git;branch=master;protocol=https;destsuffix=${BB_GIT_DEFAULT_DESTSUFFIX}/buildtools/lzma;name=lzma \
+           git://android.googlesource.com/platform/external/zstd.git;branch=master;protocol=https;destsuffix=${BB_GIT_DEFAULT_DESTSUFFIX}/buildtools/zstd;name=zstd \
+           https://storage.googleapis.com/perfetto/gn-linux64-1968-0725d782;subdir=${BB_GIT_DEFAULT_DESTSUFFIX}/buildtools/;name=gn \
            \
            file://0001-Remove-check_build_deps-build-steps.patch \
            file://0002-traced-fix-missing-include.patch \
+           file://0001-add-missing-includes-for-the-build-with-use_libcxx_m.patch \
            "
 
 SRCREV_bionic = "a0d0355105cb9d4a4b5384897448676133d7b8e2"
@@ -44,7 +45,7 @@ SRCREV_libunwind = "419b03c0b8f20d6da9ddcb0d661a94a97cdd7dad"
 SRCREV_zlib = "6d3f6aa0f87c9791ca7724c279ef61384f331dfd"
 SRCREV_zstd = "77211fcc5e08c781734a386402ada93d0d18d093"
 
-SRCREV_FORMAT .="_bionic_core_lzma_libprocinfo_logging_unwinding_protobuf_libbase_libcxx_libcxxabi_libunwind_zlib_zstd"
+SRCREV_FORMAT .= "_bionic_core_lzma_libprocinfo_logging_unwinding_protobuf_libbase_libcxx_libcxxabi_libunwind_zlib_zstd"
 
 SRC_URI[gn.sha256sum] = "f706aaa0676e3e22f5fc9ca482295d7caee8535d1869f99efa2358177b64f5cd"
 

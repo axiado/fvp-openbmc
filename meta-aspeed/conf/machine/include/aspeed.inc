@@ -5,8 +5,10 @@ PREFERRED_PROVIDER_u-boot ?= "u-boot-aspeed-sdk"
 PREFERRED_PROVIDER_u-boot-fw-utils ?= "u-boot-fw-utils-aspeed-sdk"
 
 # Build a FIT image and stuff core-image-minimal in it by default.
-KERNEL_IMAGETYPE ?= "fitImage"
-KERNEL_CLASSES ?= "kernel-fitimage"
+# FIT images are now built by the linux-yocto-fitimage recipe
+# The kernel itself builds a standard image type (zImage for ARM)
+KERNEL_IMAGETYPE ?= "zImage"
+KERNEL_CLASSES ?= "kernel-fit-extra-artifacts"
 INITRAMFS_IMAGE ?= "aspeed-image-initramfs"
 INITRAMFS_FSTYPES ?= "cpio.xz"
 
@@ -15,6 +17,7 @@ WKS_FILE_DEPENDS ?= " \
     phosphor-hostfw-image \
     virtual/bootloader \
     virtual/kernel \
+    linux-yocto-fitimage \
 "
 WKS_HOSTFW_SIZE ?= "5G"
 IMAGE_BOOT_FILES ?= "fitImage-${INITRAMFS_IMAGE}-${MACHINE}-${MACHINE};fitImage"
@@ -27,7 +30,6 @@ MACHINEOVERRIDES =. "aspeed:"
 # runqemu support
 EXTRA_IMAGEDEPENDS += "qemu-helper-native"
 IMAGE_CLASSES += "qemuboot"
-QB_SYSTEM_NAME = "qemu-system-arm"
 QB_ROOTFS_OPT = "-drive file=@ROOTFS@,if=mtd,format=raw"
 QB_DEFAULT_FSTYPE = "static.mtd"
 # Disable virtio-pci device

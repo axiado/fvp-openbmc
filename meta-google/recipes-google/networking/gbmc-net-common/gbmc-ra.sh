@@ -21,6 +21,7 @@ source /usr/share/gbmc-net-lib.sh || exit
 : "${RA_IF:?No RA interface set}"
 : "${IP_OFFSET=?1}"
 : "${ROUTE_METRIC:?No Metric set}"
+ROUTE_METRIC_LO="$((ROUTE_METRIC+1000))"
 
 # We would prefer empty string but it's easier for associative array handling
 # to use invalid
@@ -29,30 +30,84 @@ old_mac=invalid
 old_pfx=invalid
 old_fqdn=invalid
 
+add_rtr() {
+  local rtr="$1"
+  local mac="$2"
+  local new="$3"
+
+  local route_table
+  route_table="$(gbmc_net_route_table_for_intf "$RA_IF")" || return
+
+  # Override any existing gateway information within files
+  # Make sure we cover `00-*` and `-*` files
+  for file in /run/systemd/network/{00,}-bmc-$RA_IF.network; do
+    mkdir -p "$file.d"
+    printf '[Neighbor]\nMACAddress=%s\nAddress=%s\n' \
+      "$mac" "$rtr" >"$file.d"/10-gateway.conf
+    printf '[Route]\nGateway=%s\nGatewayOnLink=true\nMetric=512\nTable=%d\n' \
+      "$rtr" "$route_table" >>"$file.d"/10-gateway.conf
+    printf '[Route]\nGateway=%s\nGatewayOnLink=true\nMetric=%d\n' \
+      "$rtr" "$ROUTE_METRIC_LO" >>"$file.d"/10-gateway.conf
+    if (( new == 1 )); then
+      printf '[Route]\nGateway=%s\nGatewayOnLink=true\nMetric=%d\n' \
+        "$rtr" "$ROUTE_METRIC" >"$file.d"/10-gateway-dyn.conf
+      mkdir -p /var/google/last-ra
+      printf '%s\n%s\n' "$rtr" "$mac" >"/var/google/last-ra/$RA_IF"
+    fi
+  done
+
+  # Don't force networkd to reload as this can break phosphor-networkd
+  # Fall back to reload only if ip link commands fail
+  local st=0
+  ip -6 neigh replace "$rtr" dev "$RA_IF" lladdr "$mac" || st=$?
+  ip -6 route replace default via "$rtr" onlink dev "$RA_IF" metric 512 table "$route_table" || st=$?
+  ip -6 route replace default via "$rtr" onlink dev "$RA_IF" metric "$ROUTE_METRIC_LO" || st=$?
+  if (( new == 1 )); then
+    ip -6 route replace default via "$rtr" onlink dev "$RA_IF" metric "$ROUTE_METRIC" || st=$?
+  fi
+  if (( st != 0 )); then
+    gbmc_net_networkd_reload "$RA_IF" || true
+  fi
+}
+
+# Read the old info from persistent storage in case ToR is updating
+rafile="/var/google/last-ra/$RA_IF"
+if [ -e "$rafile" ]; then
+  exec {rafd}<"$rafile"
+  read -r -u "$rafd" rtr
+  read -r -u "$rafd" mac
+  exec {rafd}<&-
+  echo "Loading old router $rtr($mac)" >&2
+  add_rtr "$rtr" "$mac" 0
+fi
+
 default_update_rtr() {
   local rtr="$1"
   local mac="$2"
+  local op="${3-add}"
 
   if ip addr show | grep -q "^[ ]*inet6 $rtr/"; then
     echo "Router is ourself, ignoring" >&2
     return 0
   fi
 
-  # Override any existing gateway information within files
-  # Make sure we cover `00-*` and `-*` files
-  for file in /run/systemd/network/{00,}-bmc-$RA_IF.network; do
-    mkdir -p "$file.d"
-    printf '[Route]\nGateway=%s\nGatewayOnLink=true\nMetric=%d\n[Neighbor]\nMACAddress=%s\nAddress=%s' \
-      "$rtr" "$ROUTE_METRIC" "$mac" "$rtr" >"$file.d"/10-gateway.conf
-  done
 
-  # Don't force networkd to reload as this can break phosphor-networkd
-  # Fall back to reload only if ip link commands fail
-  (ip -6 route replace default via "$rtr" onlink dev "$RA_IF" metric "$ROUTE_METRIC" && \
-    ip -6 neigh replace "$rtr" dev "$RA_IF" lladdr "$mac") || \
-    gbmc_net_networkd_reload "$RA_IF" || true
+  if [[ ${op} = "add" ]]; then
+    add_rtr "$rtr" "$mac" 1
+    echo "Set router $rtr on $RA_IF" >&2
+  elif [[ ${op} = "remove" ]]; then
+    # Override any existing gateway information within files
+    # Make sure we cover `00-*` and `-*` files
+    for file in /run/systemd/network/{00,}-bmc-$RA_IF.network.d/10-gateway-dyn.conf; do
+      rm -rf "$file"
+    done
 
-  echo "Set router $rtr on $RA_IF" >&2
+    # Fall back to reload if remove failed
+    ip -6 route del default via "$rtr" onlink dev "$RA_IF" metric "$ROUTE_METRIC" || \
+      gbmc_net_networkd_reload "$RA_IF" || true
+
+    echo "Del router $rtr on $RA_IF" >&2
+  fi
 }
 
 default_update_fqdn() {
@@ -62,20 +117,26 @@ default_update_fqdn() {
   echo "Set hostname $fqdn on $RA_IF" >&2
 }
 
-retries=1
+# mininum retry time
 min_w=10
+# rdisc time
+r_timeout=10
+# routing expiration time
+expire_time=180
+# rs intervals
+rs_intervals=30
 declare -A rtrs
 rtrs=()
 while true; do
   # shellcheck disable=SC2206
   data=(${rtrs["${old_rtr}"]-})
-  curr_dl="${data[1]-$(( min_w + SECONDS ))}"
-  args=(-m "$RA_IF" -w $(( (curr_dl - SECONDS) * 1000 )))
-  if (( retries > 0 )); then
-    args+=(-r "$retries")
+  next_rs=
+  if [ -z "${data[1]}" ]; then
+    next_rs=$(( min_w + SECONDS ))
   else
-    args+=(-d)
+    next_rs=$(( rs_intervals + SECONDS ))
   fi
+  args=(-m "$RA_IF" -w $(( r_timeout * 1000 )) -r 1)
   while read -r line; do
     # `script` terminates all lines with a CRLF, remove it
     line="${line:0:-1}"
@@ -115,7 +176,7 @@ while true; do
       # a non-default router
       (( lifetime > 0 )) || continue
 
-      dl=$((lifetime + SECONDS))
+      dl=$((expire_time + SECONDS))
       fqdn=
       if [[ -n $host && -n $hextet && -n $domain ]]; then
         fqdn="$host-n$hextet.$domain"
@@ -128,7 +189,6 @@ while true; do
         if [[ "$rtr" != "$old_rtr" && "$mac" != "$old_mac" ]]; then
           echo "Got defgw $rtr at $mac on $RA_IF" >&2
           update_rtr "$rtr" "$mac" || true
-          retries=-1
           old_mac="$mac"
           old_rtr="$rtr"
         fi
@@ -160,7 +220,8 @@ while true; do
   # This ensures we don't flip flop between multiple defaults if they exist.
   if [[ "$old_rtr" != "invalid" && -z "${rtrs["$old_rtr"]-}" ]]; then
     echo "Old router $old_rtr disappeared" >&2
-    old_rtr=invalid
+    # replace routing config
+    found="false"
     for rtr in "${!rtrs[@]}"; do
       # shellcheck disable=SC2206
       data=(${rtrs["$rtr"]})
@@ -171,11 +232,22 @@ while true; do
       update_rtr "$rtr" "$mac" || true
       update_pfx "$pfx" || true
       update_fqdn "$fqdn" || true
+      old_rtr="$rtr"
+      old_pfx="$pfx"
+      old_mac="$mac"
+      old_fqdn="$fqdn"
+      found="true"
       break
     done
+    # no other route exsits, removing the route
+    if [[ "$found" = "false" ]]; then
+      update_rtr "$old_rtr" "$old_mac" "remove" || true
+      old_rtr=invalid
+      old_mac=invalid
+    fi
   fi
 
   # If rdisc6 exits early we still want to wait for the deadline before retrying
-  (( timeout = curr_dl - SECONDS ))
+  (( timeout = next_rs - SECONDS ))
   sleep $(( timeout < 0 ? 0 : timeout ))
 done

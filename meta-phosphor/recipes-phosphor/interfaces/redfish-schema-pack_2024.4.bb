@@ -5,16 +5,14 @@ SRC_URI = "git://github.com/DMTF/Redfish-Publications;branch=main;protocol=https
 SRCREV = "5cc369c5c0fb39698259071b7a597f7504b24e55"
 PV = "2024.4"
 
-S = "${WORKDIR}/git"
-
 inherit allarch
 BBCLASSEXTEND = "native nativesdk"
 
 do_compile () {
     DOLLAR="$"
     cat > ${WORKDIR}/redfish-schema-pack.pc <<EOF
-prefix=${prefix}
-schema_dir=${DOLLAR}{prefix}/share/redfish-schema-pack
+prefix = ${prefix}
+schema_dir = ${DOLLAR}{prefix}/share/redfish-schema-pack
 
 Name: redfish-schema-pack
 Description: DMTF Redfish Schema Pack

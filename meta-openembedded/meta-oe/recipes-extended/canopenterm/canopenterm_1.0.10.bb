@@ -13,13 +13,12 @@ BUGTRACKER = "https://github.com/CANopenTerm/CANopenTerm/issues"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://LICENSE.md;md5=10e84ea70e8c3a1fbc462f5424806474"
 
-DEPENDS = "cjson libinih libsdl2 lua libsocketcan pocketpy"
+DEPENDS = "cjson libinih virtual/libsdl2 lua libsocketcan pocketpy"
 
 SRC_URI = "git://github.com/CANopenTerm/CANopenTerm.git;protocol=https;branch=main"
 
 SRCREV  = "e0760b2e9657907e691be4df384ca7617109635d"
 
-S = "${WORKDIR}/git"
 
 inherit cmake ptest
 

@@ -14,8 +14,6 @@ SRC_URI = "git://github.com/openbmc/host-error-monitor;branch=master;protocol=ht
 DEPENDS = "boost sdbusplus libgpiod libpeci phosphor-dbus-interfaces"
 
 PV = "0.1+git${SRCPV}"
-SRCREV = "d771eb3009a5102baf652dfe078deaf7b3d35aba"
-
-S = "${WORKDIR}/git"
+SRCREV = "34aa3d08e94a999f4314bc57ba2c32e9d482e5e7"
 
 SYSTEMD_SERVICE:${PN} += "xyz.openbmc_project.HostErrorMonitor.service"

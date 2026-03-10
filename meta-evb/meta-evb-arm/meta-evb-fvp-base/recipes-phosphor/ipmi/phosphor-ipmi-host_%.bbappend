@@ -12,14 +12,12 @@ SERIAL_DEVICE = "ttyAMA2"
 PACKAGECONFIG:remove = "transport-null"
 PACKAGECONFIG:append = " \
     transport-serial \
-"
-EXTRA_OEMESON= " \
-  -Darm-sbmr=enabled \
+    arm-sbmr \
 "
 
 SRC_URI += " \
     file://0001-Support-Redfish-Host-Interface-commands.patch \
     file://0002-Add-IPMI-Arm-OEM-Command.patch \
-    file://0003-serialbridge-Fix-checksum-data-byte-escaping.patch \
-    file://0004-Add-CPER-transfer-support-to-SBMR-IPMI.patch \
+    file://0003-meta-evb-meta-evb-arm-Add-Send-Platform-Error-Record.patch \
 "
+

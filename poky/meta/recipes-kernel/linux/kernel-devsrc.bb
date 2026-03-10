@@ -7,7 +7,7 @@ SECTION = "kernel"
 
 LICENSE = "GPL-2.0-only"
 
-inherit linux-kernel-base
+inherit kernelsrc
 
 # Whilst not a module, this ensures we don't get multilib extended (which would make no sense)
 inherit module-base
@@ -20,14 +20,10 @@ do_install[depends] += "virtual/kernel:do_shared_workdir"
 do_install[depends] += "virtual/kernel:do_install"
 
 # There's nothing to do here, except install the source where we can package it
-do_fetch[noexec] = "1"
-do_unpack[noexec] = "1"
-do_patch[noexec] = "1"
 do_configure[noexec] = "1"
 do_compile[noexec] = "1"
 deltask do_populate_sysroot
 
-S = "${STAGING_KERNEL_DIR}"
 B = "${STAGING_KERNEL_BUILDDIR}"
 
 PACKAGE_ARCH = "${MACHINE_ARCH}"
@@ -75,7 +71,8 @@ do_install() {
         if [ -s Module.symvers ]; then
             cp Module.symvers $kerneldir/build
         fi
-        cp System.map* $kerneldir/build
+        cp System.map-* $kerneldir/build
+        ln -s System.map-* $kerneldir/build/System.map
         if [ -s Module.markers ]; then
             cp Module.markers $kerneldir/build
         fi
@@ -297,6 +294,7 @@ do_install() {
             cp -a --parents arch/x86/tools/relocs_common.c $kerneldir/build/
             cp -a --parents arch/x86/tools/relocs.h $kerneldir/build/
             cp -a --parents arch/x86/tools/gen-insn-attr-x86.awk $kerneldir/build/ 2>/dev/null || :
+            cp -a --parents arch/x86/tools/cpufeaturemasks.awk $kerneldir/build/ 2>/dev/null || :
             cp -a --parents arch/x86/purgatory/purgatory.c $kerneldir/build/
 
             # 4.18 + have unified the purgatory files, so we ignore any errors if

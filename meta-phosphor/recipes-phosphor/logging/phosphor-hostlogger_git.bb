@@ -9,14 +9,13 @@ DEPENDS += " \
             phosphor-logging \
             zlib \
            "
-SRCREV = "e0bb03b042373c43db2eee0ca8c65a74a3b68cef"
+SRCREV = "531629353c56b8cc78610081c430d5250e34b3c1"
 PV = "1.0+git${SRCPV}"
 PR = "r1"
 
 SRC_URI = "git://github.com/openbmc/phosphor-hostlogger;branch=master;protocol=https"
 
 # Source code repository
-S = "${WORKDIR}/git"
 # Systemd service template
 SYSTEMD_PACKAGES = "${PN}"
 SYSTEMD_SERVICE:${PN} = "hostlogger@.service"

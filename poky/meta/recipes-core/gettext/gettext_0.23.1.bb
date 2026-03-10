@@ -13,7 +13,6 @@ LIC_FILES_CHKSUM:append = " ${@bb.utils.contains('PACKAGECONFIG', 'libxml', '', 
 # without glib in PACKAGECONFIG vendor copy of the lib will be used
 LIC_FILES_CHKSUM:append = " ${@bb.utils.contains('PACKAGECONFIG', 'glib', '', 'file://libtextstyle/lib/glib/ghash.c;md5=e3159f5ac38dfe77af5cc0ee104dab2d;beginline=10;endline=27', d)}"
 
-
 DEPENDS = "gettext-native virtual/libiconv"
 DEPENDS:class-native = "gettext-minimal-native"
 PROVIDES = "virtual/libintl virtual/gettext"
@@ -62,9 +61,6 @@ PACKAGECONFIG[libxml] = "--without-included-libxml,--with-included-libxml,libxml
 # or problems if $libdir isn't $prefix/lib.
 PACKAGECONFIG[libunistring] = "--with-libunistring-prefix=${STAGING_LIBDIR}/..,--with-included-libunistring,libunistring"
 PACKAGECONFIG[msgcat-curses] = "--with-libncurses-prefix=${STAGING_LIBDIR}/..,--disable-curses,ncurses,"
-
-acpaths = '-I ${S}/gettext-runtime/m4 \
-           -I ${S}/gettext-tools/m4'
 
 do_install:append:libc-musl () {
 	rm -f ${D}${libdir}/charset.alias

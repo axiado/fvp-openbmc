@@ -33,7 +33,6 @@ EXTRA_OECONF:append:class-nativesdk = " --disable-update-alternatives DEB_HOST_A
 PACKAGECONFIG = "liblzma"
 PACKAGECONFIG[liblzma] = "--with-liblzma,--without-liblzma, xz"
 
-
 #autotools.bbclass default AUTOTOOLS_AUXDIR is ${S}, we need to under ${S}/build-aux
 AUTOTOOLS_AUXDIR = "${S}/build-aux"
 
@@ -43,6 +42,8 @@ do_configure:prepend () {
         # update dselect/po and scripts/po
         cp -f ${STAGING_DATADIR_NATIVE}/gettext/po/Makefile.in.in ${S}/dselect/po/
         cp -f ${STAGING_DATADIR_NATIVE}/gettext/po/Makefile.in.in ${S}/scripts/po/
+
+        [ ! -e ${S}/.dist-version ] && echo ${PV} > ${S}/.dist-version
 }
 
 do_install:append () {

@@ -4,16 +4,28 @@
 source /usr/libexec/fb-common-functions
 
 BE_NIC_I2C_LIST="\
-24-001f \
-26-001f \
-36-001f \
-38-001f \
+32-001f \
+35-001f \
+44-001f \
+47-001f \
 "
+
+is_host_on()
+{
+  local host_power_state=""
+  host_power_state="$(busctl get-property xyz.openbmc_project.State.Host /xyz/openbmc_project/state/host0 xyz.openbmc_project.State.Host CurrentHostState | cut -d'"' -f2)"
+
+  if [ "$host_power_state" != "xyz.openbmc_project.State.Host.HostState.Running" ]; then
+      return 1
+  fi
+  return 0
+}
+
 
 ATTEMPT_COUNT=0
 
 while true; do
-    if [ "$(get_gpio "host0-ready")" -ne 1 ]; then
+    if ! is_host_on; then
         sleep 5
         continue
     fi

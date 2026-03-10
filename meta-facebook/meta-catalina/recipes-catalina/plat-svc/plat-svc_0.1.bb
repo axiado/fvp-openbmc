@@ -3,33 +3,81 @@ LIC_FILES_CHKSUM = "file://${COREBASE}/meta/files/common-licenses/Apache-2.0;md5
 
 inherit allarch systemd obmc-phosphor-systemd
 
-S = "${WORKDIR}/sources"
-UNPACKDIR = "${S}"
+S = "${UNPACKDIR}"
 
 RDEPENDS:${PN} += "bash"
 RDEPENDS:${PN} += "libgpiod-tools"
 RDEPENDS:${PN} += "fb-common-functions"
 
-SRC_URI += " \
-    file://backend-nic-driver-bind \
-    file://catalina-sys-init.service \
-    file://catalina-early-sys-init \
-    file://osfp-eeprom-driver-bind \
+SRC_URI:append = " \
+    file://frontend-nic-temp-read \
+    file://frontend-nic-temp-read.service \
+    file://platform-early-sys-init \
+    file://platform-sys-init.service \
     file://standby-power-enable \
     "
 
 SYSTEMD_PACKAGES = "${PN}"
 SYSTEMD_SERVICE:${PN}:append = " \
-    backend-nic-driver-bind.service \
-    catalina-sys-init.service \
-    osfp-eeprom-driver-bind.service \
+    frontend-nic-temp-read.service \
+    platform-sys-init.service \
     "
 
 do_install() {
-    CATALINA_LIBEXECDIR="${D}${libexecdir}/catalina"
-    install -d ${CATALINA_LIBEXECDIR}
-    install -m 0755 ${UNPACKDIR}/backend-nic-driver-bind ${CATALINA_LIBEXECDIR}
-    install -m 0755 ${UNPACKDIR}/catalina-early-sys-init ${CATALINA_LIBEXECDIR}
-    install -m 0755 ${UNPACKDIR}/osfp-eeprom-driver-bind ${CATALINA_LIBEXECDIR}
-    install -m 0755 ${UNPACKDIR}/standby-power-enable ${CATALINA_LIBEXECDIR}
+    PLATSVC_LIBEXECDIR="${D}${libexecdir}/plat-svc"
+    install -d ${PLATSVC_LIBEXECDIR}
+
+    install -m 0755 ${UNPACKDIR}/frontend-nic-temp-read ${PLATSVC_LIBEXECDIR}
+    install -m 0755 ${UNPACKDIR}/platform-early-sys-init ${PLATSVC_LIBEXECDIR}
+    install -m 0755 ${UNPACKDIR}/standby-power-enable ${PLATSVC_LIBEXECDIR}
+
+}
+
+#===============================================================================
+# Catalina
+#===============================================================================
+SRC_URI:append:catalina = " \
+    file://iob-nic-temp-read \
+    file://iob-nic-temp-read.service \
+    file://osfp-eeprom-driver-bind \
+    file://osfp-eeprom-driver-bind.service \
+    "
+
+SYSTEMD_SERVICE:${PN}:append:catalina = " \
+    iob-nic-temp-read.service \
+    osfp-eeprom-driver-bind.service \
+    "
+
+do_install:append:catalina() {
+    PLATSVC_LIBEXECDIR="${D}${libexecdir}/plat-svc"
+    install -d ${PLATSVC_LIBEXECDIR}
+    install -m 0755 ${UNPACKDIR}/iob-nic-temp-read ${PLATSVC_LIBEXECDIR}
+    install -m 0755 ${UNPACKDIR}/osfp-eeprom-driver-bind ${PLATSVC_LIBEXECDIR}
+}
+
+#===============================================================================
+# Clemente
+#===============================================================================
+SRC_URI:append:clemente = " \
+    file://backend-nic-driver-bind \
+    file://backend-nic-driver-bind.service \
+    file://check-bootdrive-led \
+    file://check-bootdrive-led.service \
+    file://init-sma \
+    file://init-sma.service \
+    "
+
+SYSTEMD_SERVICE:${PN}:append:clemente = " \
+    backend-nic-driver-bind.service \
+    check-bootdrive-led.service \
+    init-sma.service \
+    cx-ready.target \
+    "
+
+do_install:append:clemente() {
+    PLATSVC_LIBEXECDIR="${D}${libexecdir}/plat-svc"
+    install -d ${PLATSVC_LIBEXECDIR}
+    install -m 0755 ${UNPACKDIR}/backend-nic-driver-bind ${PLATSVC_LIBEXECDIR}
+    install -m 0755 ${UNPACKDIR}/check-bootdrive-led ${PLATSVC_LIBEXECDIR}
+    install -m 0755 ${UNPACKDIR}/init-sma ${PLATSVC_LIBEXECDIR}
 }

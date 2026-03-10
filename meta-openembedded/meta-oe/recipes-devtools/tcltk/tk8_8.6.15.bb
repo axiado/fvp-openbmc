@@ -29,7 +29,7 @@ SRC_URI[sha256sum] = "550969f35379f952b3020f3ab7b9dd5bfd11c1ef7c9b7c6a75f5c49aca
 UPSTREAM_CHECK_URI = "https://sourceforge.net/projects/tcl/files/Tcl/"
 UPSTREAM_CHECK_REGEX = "Tcl/(?P<pver>\d+(\.\d+)+)/"
 
-S = "${WORKDIR}/tk${PV}"
+S = "${UNPACKDIR}/tk${PV}"
 
 # Short version format: "8.6"
 VER = "${@os.path.splitext(d.getVar('PV'))[0]}"
@@ -39,6 +39,7 @@ CFLAGS += "-I${STAGING_INCDIR}/tcl${VER}"
 inherit autotools features_check pkgconfig
 
 AUTOTOOLS_SCRIPT_PATH = "${S}/unix"
+EXTRA_AUTORECONF += "--exclude=aclocal"
 
 # depends on virtual/libx11
 REQUIRED_DISTRO_FEATURES = "x11"
@@ -50,7 +51,7 @@ EXTRA_OECONF = "\
     --libdir=${libdir} \
 "
 
-export TK_LIBRARY='${libdir}/tk${VER}'
+export TK_LIBRARY = '${libdir}/tk${VER}'
 
 do_install:append() {
     ln -sf libtk${VER}.so ${D}${libdir}/libtk${VER}.so.0

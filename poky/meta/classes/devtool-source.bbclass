@@ -92,9 +92,9 @@ python devtool_post_unpack() {
             for fname in local_files:
                 f.write('%s\n' % fname)
 
-    if os.path.dirname(srcsubdir) != workdir:
+    if srcsubdir.startswith(unpackdir) and os.path.dirname(srcsubdir) != unpackdir:
         # Handle if S is set to a subdirectory of the source
-        srcsubdir = os.path.join(workdir, os.path.relpath(srcsubdir, workdir).split(os.sep)[0])
+        srcsubdir = os.path.normpath(os.path.join(unpackdir, os.path.relpath(srcsubdir, unpackdir).split(os.sep)[0]))
 
     scriptutils.git_convert_standalone_clone(srcsubdir)
 
@@ -179,9 +179,9 @@ python devtool_post_patch() {
                 # (otherwise we'd likely be left with identical commits that have different hashes)
                 bb.process.run('git rebase devtool-no-overrides', cwd=srcsubdir)
         bb.process.run('git checkout %s' % devbranch, cwd=srcsubdir)
-    bb.process.run('git tag -f devtool-patched', cwd=srcsubdir)
+    bb.process.run('git tag -f --no-sign devtool-patched', cwd=srcsubdir)
     if os.path.exists(os.path.join(srcsubdir, '.gitmodules')):
-        bb.process.run('git submodule foreach --recursive  "git tag -f devtool-patched"', cwd=srcsubdir)
+        bb.process.run('git submodule foreach --recursive  "git tag -f --no-sign devtool-patched"', cwd=srcsubdir)
 
 }
 

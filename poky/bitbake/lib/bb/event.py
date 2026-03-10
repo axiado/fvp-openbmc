@@ -194,7 +194,12 @@ def fire_ui_handlers(event, d):
         ui_queue.append(event)
         return
 
-    with bb.utils.lock_timeout(_thread_lock):
+    with bb.utils.lock_timeout_nocheck(_thread_lock) as lock:
+        if not lock:
+            # If we can't get the lock, we may be recursively called, queue and return
+            ui_queue.append(event)
+            return
+
         errors = []
         for h in _ui_handlers:
             #print "Sending event %s" % event
@@ -213,6 +218,9 @@ def fire_ui_handlers(event, d):
         for h in errors:
             del _ui_handlers[h]
 
+    while ui_queue:
+        fire_ui_handlers(ui_queue.pop(), d)
+
 def fire(event, d):
     """Fire off an Event"""
 
@@ -228,9 +236,12 @@ def fire(event, d):
         # If messages have been queued up, clear the queue
         global _uiready, ui_queue
         if _uiready and ui_queue:
-            for queue_event in ui_queue:
+            with bb.utils.lock_timeout_nocheck(_thread_lock):
+                queue = ui_queue
+                ui_queue = []
+            for queue_event in queue:
                 fire_ui_handlers(queue_event, d)
-            ui_queue = []
+
         fire_ui_handlers(event, d)
 
 def fire_from_worker(event, d):
@@ -421,6 +432,16 @@ class MultiConfigParsed(Event):
 class RecipeEvent(Event):
     def __init__(self, fn):
         self.fn = fn
+        Event.__init__(self)
+
+class RecipePreDeferredInherits(RecipeEvent):
+    """
+    Called before deferred inherits are processed so code can snoop on class extensions for example
+    Limitations: It won't see inherits of inherited classes and the data is unexpanded
+    """
+    def __init__(self, fn, inherits):
+        self.fn = fn
+        self.inherits = inherits
         Event.__init__(self)
 
 class RecipePreFinalise(RecipeEvent):

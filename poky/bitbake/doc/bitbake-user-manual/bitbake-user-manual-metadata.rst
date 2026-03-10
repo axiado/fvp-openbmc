@@ -900,6 +900,33 @@ definitions::
    of include . Doing so makes sure that an error is produced if the file cannot
    be found.
 
+``include_all`` Directive
+-------------------------
+
+The ``include_all`` directive works like the :ref:`include
+<bitbake-user-manual/bitbake-user-manual-metadata:\`\`include\`\` directive>`
+directive but will include all of the files that match the specified path in
+the enabled layers (layers part of :term:`BBLAYERS`).
+
+For example, let's say a ``maintainers.inc`` file is present in different layers
+and is conventionally placed in the ``conf/distro/include`` directory of each
+layer. In that case the ``include_all`` directive can be used to include
+the ``maintainers.inc`` file for all of these layers::
+
+   include_all conf/distro/include/maintainers.inc
+
+In other words, the ``maintainers.inc`` file for each layer is included through
+the :ref:`include <bitbake-user-manual/bitbake-user-manual-metadata:\`\`include\`\` directive>`
+directive.
+
+BitBake will iterate through the colon-separated :term:`BBPATH` list to look for
+matching files to include, from left to right. As a consequence, matching files
+are included in that order.
+
+As the ``include_all`` directive uses the :ref:`include
+<bitbake-user-manual/bitbake-user-manual-metadata:\`\`include\`\` directive>`
+directive in the background, no error is produced if no files are matched.
+
 .. _require-inclusion:
 
 ``require`` Directive
@@ -971,9 +998,9 @@ This directive allows fine-tuning local configurations with configuration
 snippets contained in layers in a structured, controlled way. Typically it would
 go into ``bitbake.conf``, for example::
 
-   addfragments conf/fragments OE_FRAGMENTS OE_FRAGMENTS_METADATA_VARS
+   addfragments conf/fragments OE_FRAGMENTS OE_FRAGMENTS_METADATA_VARS OE_BUILTIN_FRAGMENTS
 
-``addfragments`` takes three parameters:
+``addfragments`` takes four parameters:
 
 -  path prefix for fragment files inside the layer file tree that bitbake
    uses to construct full paths to the fragment files
@@ -983,6 +1010,8 @@ go into ``bitbake.conf``, for example::
 
 -  name of variable that contains a list of variable names containing
    fragment-specific metadata (such as descriptions)
+
+-  name of variable that contains definitions for built-in fragments
 
 This allows listing enabled configuration fragments in ``OE_FRAGMENTS``
 variable like this::
@@ -1007,6 +1036,19 @@ The variable containing a list of fragment metadata variables could look like th
 The implementation will add a flag containing the fragment name to each of those variables
 when parsing fragments, so that the variables are namespaced by fragment name, and do not override
 each other when several fragments are enabled.
+
+The variable containing a built-in fragment definitions could look like this::
+
+   OE_BUILTIN_FRAGMENTS = "someprefix:SOMEVARIABLE anotherprefix:ANOTHERVARIABLE"
+
+and then if 'someprefix/somevalue' is added to the variable that holds the list
+of enabled fragments:
+
+  OE_FRAGMENTS = "... someprefix/somevalue"
+
+bitbake will treat that as direct value assignment in its configuration::
+
+  SOMEVARIABLE = "somevalue"
 
 Functions
 =========
@@ -1378,8 +1420,8 @@ the task and other tasks. Here is an example that shows how to define a
 task and declare some dependencies::
 
    python do_printdate () {
-       import time
-       print time.strftime('%Y%m%d', time.gmtime())
+       import datetime
+       bb.plain('Date: %s' % (datetime.date.today()))
    }
    addtask printdate after do_fetch before do_build
 
@@ -2047,11 +2089,8 @@ access. Here is a list of available operations:
 Other Functions
 ---------------
 
-You can find many other functions that can be called from Python by
-looking at the source code of the ``bb`` module, which is in
-``bitbake/lib/bb``. For example, ``bitbake/lib/bb/utils.py`` includes
-the commonly used functions ``bb.utils.contains()`` and
-``bb.utils.mkdirhier()``, which come with docstrings.
+Other functions are documented in the
+:doc:`/bitbake-user-manual/bitbake-user-manual-library-functions` document.
 
 Extending Python Library Code
 -----------------------------

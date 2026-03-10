@@ -25,6 +25,15 @@ def ipmi_whitelists(d):
     whitelists = [ '{}-whitelist-native'.format(x) for x in whitelists ]
     return ' '.join(whitelists)
 
+OBMC_ORG_IPMI_OEM_PROVIDERS ?= ""
+# Process OBMC_ORG_IPMI_OEM_PROVIDERS to create Meson config options.
+# ex. "example nvidia" -> -Doem-libraries="['example','nvidia']"
+def ipmi_oem_providers_config(d):
+    return '-Doem-libraries="[' + \
+        ','.join([f"'{x}'" for x in set(listvar_to_list(d, 'OBMC_ORG_IPMI_OEM_PROVIDERS'))]) + ']"'
+
+ipmi_oem_providers_config[vardeps] = "OBMC_ORG_IPMI_OEM_PROVIDERS"
+
 PACKAGECONFIG ??= " \
     allowlist \
     boot-flag-safe-mode \
@@ -34,11 +43,13 @@ PACKAGECONFIG ??= " \
     softoff \
     ${@bb.utils.contains('OBMC_ORG_YAML_SUBDIRS', 'org/open_power', 'open-power', '', d)} \
     transport-null \
+    oem-providers \
     "
-PACKAGECONFIG[allowlist] = "-Dipmi-whitelist=enabled,-Dipmi-whitelist=disabled"
+PACKAGECONFIG[allowlist] = '-Dwhitelist-conf="${WHITELIST_CONF}" -Dipmi-whitelist=enabled,-Dipmi-whitelist=disabled'
+PACKAGECONFIG[arm-sbmr] = "-Darm-sbmr=enabled,-Darm-sbmr=disabled"
 PACKAGECONFIG[boot-flag-safe-mode] = "-Dboot-flag-safe-mode-support=enabled,-Dboot-flag-safe-mode-support=disabled"
 PACKAGECONFIG[dynamic-sensors] = "-Ddynamic-sensors=enabled,-Ddynamic-sensors=disabled"
-PACKAGECONFIG[dynamic-storages-only] = "-Ddynamic-storages-only=enabled,-Ddynamic-storages-only=disabled"
+PACKAGECONFIG[dynamic-storages-only] = "-Ddynamic-storages-only=enabled,-Ddynamic-storages-only=disabled,,phosphor-sel-logger"
 PACKAGECONFIG[entity-manager-decorators] = "-Dentity-manager-decorators=enabled,-Dentity-manager-decorators=disabled"
 PACKAGECONFIG[hybrid-sensors] = "-Dhybrid-sensors=enabled,-Dhybrid-sensors=disabled"
 PACKAGECONFIG[i2c-allowlist] = "-Di2c-whitelist-check=enabled,-Di2c-whitelist-check=disabled"
@@ -50,6 +61,8 @@ PACKAGECONFIG[transport-oem] = "-Dtransport-oem=enabled,-Dtransport-oem=disabled
 PACKAGECONFIG[update-functional-on-fail] = "-Dupdate-functional-on-fail=enabled,-Dupdate-functional-on-fail=disabled"
 PACKAGECONFIG[transport-serial] = "-Dtransport-implementation=serial,,,,,transport-null"
 PACKAGECONFIG[transport-null] = "-Dtransport-implementation=null,,,,,transport-serial"
+PACKAGECONFIG[tests] = "-Dtests=enabled,-Dtests=disabled"
+PACKAGECONFIG[oem-providers] = "${@ipmi_oem_providers_config(d)},-Doem-libraries=[]"
 
 DEPENDS += "nlohmann-json"
 DEPENDS += "openssl"
@@ -89,11 +102,10 @@ SYSTEMD_SERVICE:${PN} += "xyz.openbmc_project.Ipmi.Internal.SoftPowerOff.service
 
 RRECOMMENDS:${PN} += "phosphor-settings-manager"
 
-
 require ${BPN}.inc
 
 # Setup IPMI Whitelist Conf files
-WHITELIST_CONF = " \
+WHITELIST_CONF ?= " \
         ${STAGING_DATADIR_NATIVE}/phosphor-ipmi-host/*.conf \
         ${S}/host-ipmid-whitelist.conf \
         "
@@ -102,13 +114,7 @@ EXTRA_OEMESON = " \
         -Dinvsensor-yaml-gen=${STAGING_DIR_NATIVE}${sensor_datadir}/invsensor.yaml \
         -Dfru-yaml-gen=${STAGING_DIR_NATIVE}${config_datadir}/fru_config.yaml \
         "
-EXTRA_OEMESON:append = " \
-        -Dwhitelist-conf="${WHITELIST_CONF}" \
-        "
 
-EXTRA_OEMESON:append = " -Dtests=disabled"
-
-S = "${WORKDIR}/git"
 SRC_URI += "file://merge_yamls.py "
 
 HOSTIPMI_PROVIDER_LIBRARY += "libipmi20.so"

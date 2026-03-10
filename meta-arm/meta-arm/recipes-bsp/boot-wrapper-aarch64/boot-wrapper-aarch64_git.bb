@@ -4,14 +4,12 @@ LICENSE = "BSD-3-Clause"
 LIC_FILES_CHKSUM = "file://LICENSE.txt;md5=bb63326febfb5fb909226c8e7ebcef5c"
 
 SRC_URI = "git://git.kernel.org/pub/scm/linux/kernel/git/mark/boot-wrapper-aarch64.git;branch=master;protocol=https"
-SRCREV = "5e3760073454c72f3458805a1b7a89ecf80353cb"
+SRCREV = "ac6742520ded1da30d500f74e8affe86e27cabd5"
 
 # boot-wrapper doesn't make releases
 UPSTREAM_CHECK_COMMITS = "1"
 
 PV = "0+git"
-
-S = "${WORKDIR}/git"
 
 inherit autotools deploy
 
@@ -53,7 +51,6 @@ REAL_DTB = "${@os.path.basename(d.getVar('BOOT_WRAPPER_AARCH64_DEVICETREE'))}"
 EXTRA_OEMAKE += "'KERNEL_DTB=${DEPLOY_DIR_IMAGE}/${REAL_DTB}'"
 EXTRA_OEMAKE += "'KERNEL_IMAGE=${DEPLOY_DIR_IMAGE}/${BOOT_WRAPPER_AARCH64_KERNEL}'"
 EXTRA_OEMAKE += "'CMDLINE=${BOOT_WRAPPER_AARCH64_CMDLINE}'"
-
 
 do_configure:prepend() {
     # Create dummy files to make configure happy.

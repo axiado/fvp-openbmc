@@ -31,7 +31,7 @@ SRC_URI = "http://www.libsdl.org/release/SDL-${PV}.tar.gz \
 
 UPSTREAM_CHECK_REGEX = "SDL-(?P<pver>\d+(\.\d+)+)\.tar"
 
-S = "${WORKDIR}/SDL-${PV}"
+S = "${UNPACKDIR}/SDL-${PV}"
 
 SRC_URI[sha256sum] = "d6d316a793e5e348155f0dd93b979798933fb98aa1edebcc108829d6474aad00"
 
@@ -40,7 +40,9 @@ BINCONFIG = "${bindir}/sdl-config"
 inherit autotools lib_package binconfig-disabled pkgconfig
 
 CVE_PRODUCT = "simple_directmedia_layer sdl"
-
+# GCC15/C23 results in following errors
+# ../SDL-1.2.15/src/video/Xext/XME/xme.c:218:5: error: initialization of 'int (*)(Display *, XExtCodes *)' from incompatible pointer type 'int (*)(void)' [-Wincompatible-pointer-types]
+CFLAGS += "-std=c17"
 EXTRA_OECONF = "--disable-static --enable-cdrom --enable-threads --enable-timers \
                 --enable-file --disable-oss --disable-esd --disable-arts \
                 --disable-diskaudio --disable-nas \

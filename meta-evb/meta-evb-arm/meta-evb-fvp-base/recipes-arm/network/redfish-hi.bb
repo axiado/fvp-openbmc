@@ -7,6 +7,8 @@ SRC_URI += " \
             file://00-bmc-eth0.network \
 "
 
+S = "${UNPACKDIR}"
+
 do_install() {
     install -d ${D}${sysconfdir_native}/systemd/network/
     install -m 0644 ${UNPACKDIR}/00-bmc-eth0.network ${D}${sysconfdir_native}/systemd/network

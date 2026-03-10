@@ -34,16 +34,22 @@ covered by [Jenkins](https://jenkins.openbmc.org/job/ci-openbmc/) CI testing.
   * evb-npcm845
   * fvp
 * facebook
+  * anacapa
   * bletchley
+  * bletchley15
   * catalina
-  * greatlakes
+  * clemente
+  * fbdarwin
   * harma
   * minerva
+  * sanmiguel
+  * santabarbara
   * tiogapass
   * ventura
+  * ventura2
   * yosemite4
   * yosemite4n
-  * yosemitev2
+  * yosemite5
 * fii
   * kudo
   * mori
@@ -62,7 +68,6 @@ covered by [Jenkins](https://jenkins.openbmc.org/job/ci-openbmc/) CI testing.
   * sbp1
   * system1
   * witherspoon
-  * witherspoon-tacoma
 * ieisystem
   * fp5280g3
   * nf5280m7
@@ -75,8 +80,9 @@ covered by [Jenkins](https://jenkins.openbmc.org/job/ci-openbmc/) CI testing.
   * transformers
 * nvidia
   * gb200nvl-obmc
+  * nvl32-obmc
 * qualcomm
-  * qcom-dc-scm-v1
+  * qcom-bmc-ast2600
 * quanta
   * f0b
   * gbs

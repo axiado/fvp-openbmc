@@ -15,9 +15,9 @@
             "ignoreDbusMinMax": true
         },
         {
-            "name": "SCM_TEMP_C",
+            "name": "VIRTUAL_SCM_TEMP_C",
             "type": "temp",
-            "readPath": "/xyz/openbmc_project/sensors/temperature/SCM_TEMP_C",
+            "readPath": "/xyz/openbmc_project/sensors/temperature/VIRTUAL_SCM_TEMP_C",
             "timeout": 0,
             "ignoreDbusMinMax": true
         },
@@ -105,13 +105,17 @@
             "accumulateSetPoint": true,
             "pids": [
                 {
-                    "name": "Fan Zore Zone",
+                    "name": "Fan Zero Zone",
                     "type": "fan",
                     "inputs": [
                         "FCB_0_FAN0_TACH_IL_SPEED_RPM",
                         "FCB_0_FAN0_TACH_OL_SPEED_RPM",
                         "FCB_0_FAN1_TACH_IL_SPEED_RPM",
-                        "FCB_0_FAN1_TACH_OL_SPEED_RPM"
+                        "FCB_0_FAN1_TACH_OL_SPEED_RPM",
+                        "FCB_1_FAN2_TACH_IL_SPEED_RPM",
+                        "FCB_1_FAN2_TACH_OL_SPEED_RPM",
+                        "FCB_1_FAN3_TACH_IL_SPEED_RPM",
+                        "FCB_1_FAN3_TACH_OL_SPEED_RPM"
                     ],
                     "setpoint": 0.0,
                     "pid": {
@@ -135,7 +139,7 @@
                     "name": "STEPWISE_INLET",
                     "type": "stepwise",
                     "inputs": [
-                        "SCM_TEMP_C"
+                        "VIRTUAL_SCM_TEMP_C"
                     ],
                     "setpoint": 0.0,
                     "pid": {
@@ -149,11 +153,11 @@
                             "4": 45
                         },
                         "output": {
-                            "0": 35,
-                            "1": 40,
-                            "2": 50,
-                            "3": 60,
-                            "4": 90
+                            "0": 45,
+                            "1": 50,
+                            "2": 60,
+                            "3": 70,
+                            "4": 80
                         },
                         "positiveHysteresis": 0,
                         "negativeHysteresis": 2
@@ -172,12 +176,12 @@
                         "reading": {
                             "0": 70,
                             "1": 80,
-                            "2": 105
+                            "2": 95
                         },
                         "output": {
                             "0": 30,
                             "1": 40,
-                            "2": 90
+                            "2": 80
                         },
                         "positiveHysteresis": 0,
                         "negativeHysteresis": 2
@@ -253,7 +257,7 @@
                     "name": "STEPWISE_INLET",
                     "type": "stepwise",
                     "inputs": [
-                        "SCM_TEMP_C"
+                        "VIRTUAL_SCM_TEMP_C"
                     ],
                     "setpoint": 0.0,
                     "pid": {
@@ -267,11 +271,11 @@
                             "4": 45
                         },
                         "output": {
-                            "0": 35,
-                            "1": 40,
-                            "2": 50,
-                            "3": 60,
-                            "4": 90
+                            "0": 45,
+                            "1": 50,
+                            "2": 60,
+                            "3": 70,
+                            "4": 80
                         },
                         "positiveHysteresis": 0,
                         "negativeHysteresis": 2
@@ -290,12 +294,12 @@
                         "reading": {
                             "0": 70,
                             "1": 80,
-                            "2": 105
+                            "2": 95
                         },
                         "output": {
                             "0": 30,
                             "1": 40,
-                            "2": 90
+                            "2": 80
                         },
                         "positiveHysteresis": 0,
                         "negativeHysteresis": 2

@@ -9,8 +9,14 @@ HOMEPAGE = "https://perf.wiki.kernel.org/index.php/Main_Page"
 
 LICENSE = "GPL-2.0-only"
 
+# remove at next version upgrade or when output changes
+PR = "r2"
+HASHEQUIV_HASH_VERSION .= ".2"
 
-PACKAGECONFIG ??= "python tui libunwind libtraceevent"
+# zstd is required for kernels 6.14+ when libelf-zstd is detected
+# Respect the coresight machine feature, but note this causes a
+# dependency on meta-arm.
+PACKAGECONFIG ??= "python tui libunwind libtraceevent zstd ${@bb.utils.filter('MACHINE_FEATURES', 'coresight', d)}"
 PACKAGECONFIG[dwarf] = ",NO_DWARF=1"
 PACKAGECONFIG[perl] = ",NO_LIBPERL=1,perl"
 PACKAGECONFIG[python] = ",NO_LIBPYTHON=1,python3 python3-setuptools-native"
@@ -28,7 +34,7 @@ PACKAGECONFIG[libtraceevent] = ",NO_LIBTRACEEVENT=1,libtraceevent"
 # jevents requires host python for generating a .c file, but is
 # unrelated to the python item.
 PACKAGECONFIG[jevents] = ",NO_JEVENTS=1,python3-native"
-# Arm CoreSight
+# Arm CoreSight support, requires meta-arm for opencsd
 PACKAGECONFIG[coresight] = "CORESIGHT=1,,opencsd"
 PACKAGECONFIG[pfm4] = ",NO_LIBPFM4=1,libpfm4"
 PACKAGECONFIG[babeltrace] = ",NO_LIBBABELTRACE=1,babeltrace"
@@ -66,7 +72,7 @@ include ${@bb.utils.contains('PACKAGECONFIG', 'perl', 'perf-perl.inc', '', d)}
 
 inherit kernelsrc
 
-S = "${WORKDIR}/${BP}"
+S = "${UNPACKDIR}/${BP}"
 
 # The LDFLAGS is required or some old kernels fails due missing
 # symbols and this is preferred than requiring patches to every old
@@ -80,6 +86,16 @@ LDFLAGS = "-ldl -lutil"
 # built with appropriate -f*-prefix-map options,
 # avoiding the 'buildpaths' QA warning.
 TARGET_CC_ARCH += "${SELECTED_OPTIMIZATION} ${DEBUG_PREFIX_MAP}"
+
+#| libbpf.c: In function 'find_kernel_btf_id.constprop':
+#| libbpf.c:10009:33: error: 'mod_len' may be used uninitialized [-Werror=maybe-uninitialized]
+#| 10009 |                 if (mod_name && strncmp(mod->name, mod_name, mod_len) != 0)
+#|       |                                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#| libbpf.c:9979:21: note: 'mod_len' was declared here
+#|  9979 |         int ret, i, mod_len;
+#|       |                     ^~~~~~~
+#| cc1: all warnings being treated as errors
+TARGET_CC_ARCH:append:toolchain-clang:arm = " -fno-error=maybe-uninitialized"
 
 EXTRA_OEMAKE = '\
     V=1 \
@@ -141,6 +157,7 @@ PERF_SRC ?= "Makefile \
              arch/arm64/tools \
              ${PERF_BPF_EVENT_SRC} \
              arch/${ARCH}/Makefile \
+             include/uapi/asm-generic/Kbuild \
 "
 
 PERF_EXTRA_LDFLAGS = ""
@@ -158,7 +175,14 @@ do_compile() {
             sed -i -e 's|\$(libdir)/traceevent/plugins|\$(libdir)/traceevent_${KERNEL_VERSION}/plugins|g' ${S}/tools/lib/traceevent/plugins/Makefile
 	test -e ${S}/tools/perf/Makefile.config && \
             sed -i -e 's|\$(libdir)/traceevent/plugins|\$(libdir)/traceevent_${KERNEL_VERSION}/plugins|g' ${S}/tools/perf/Makefile.config
-	oe_runmake all
+	# There are two copies of internal headers such as:
+	# libperf/include/internal/xyarray.h and tools/lib/perf/include/internal/xyarray.h
+	# For reproducibile binaries, we need to find one copy, hence force libXXX to be created first
+	for i in api bpf subcmd symbol perf
+	do
+		oe_runmake -C ${S}/tools/lib/$i DESTDIR=${B}/lib$i prefix= install_headers V=1
+	done
+	oe_runmake all V=1
 }
 
 do_install() {
@@ -198,7 +222,7 @@ python copy_perf_source_from_kernel() {
 do_configure:prepend () {
     # If building a multlib based perf, the incorrect library path will be
     # detected by perf, since it triggers via: ifeq ($(ARCH),x86_64). In a 32 bit
-    # build, with a 64 bit multilib, the arch won't match and the detection of a 
+    # build, with a 64 bit multilib, the arch won't match and the detection of a
     # 64 bit build (and library) are not exected. To ensure that libraries are
     # installed to the correct location, we can use the weak assignment in the
     # config/Makefile.
@@ -374,12 +398,7 @@ do_configure:prepend () {
     done
 }
 
-python do_package:prepend() {
-    d.setVar('PKGV', d.getVar("KERNEL_VERSION").split("-")[0])
-}
-
 PACKAGE_ARCH = "${MACHINE_ARCH}"
-
 
 PACKAGES =+ "${PN}-archive ${PN}-tests ${PN}-perl ${PN}-python"
 

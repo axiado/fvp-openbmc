@@ -43,6 +43,7 @@ SRC_URI = "git://github.com/vmware/open-vm-tools.git;protocol=https;branch=stabl
            file://0012-hgfsServerLinux-Consider-64bit-time_t-possibility.patch;patchdir=.. \
            file://0013-open-vm-tools-Correct-include-path-for-poll.h.patch;patchdir=.. \
            file://0014-timeSync-Portable-way-to-print-64bit-time_t.patch;patchdir=.. \
+           file://0001-Fix-build-when-compiling-with-std-c23.patch;patchdir=.. \
            "
 
 UPSTREAM_CHECK_GITTAGREGEX = "stable-(?P<pver>\d+(\.\d+)+)"
@@ -52,7 +53,7 @@ SRC_URI:append:libc-musl = " file://0001-Add-resolv_compat.h-for-musl-builds.pat
 
 SRCREV = "f2ca37ef3510543172657b82493d1eceefa9a134"
 
-S = "${WORKDIR}/git/open-vm-tools"
+S = "${UNPACKDIR}/${BP}/open-vm-tools"
 
 DEPENDS = "glib-2.0 glib-2.0-native util-linux libdnet procps libtirpc"
 

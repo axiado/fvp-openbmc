@@ -14,7 +14,6 @@ SRCREV = "e5431fa6f5505e385c6f9367260717e9c47dc2ee"
 
 UPSTREAM_CHECK_URI = "https://github.com/ip7z/7zip/releases/latest"
 
-S = "${WORKDIR}/git"
 
 # Support Yocto cross compiling
 CXXFLAGS:append:toolchain-clang = " -Wno-error=cast-qual -Wno-error=sign-conversion \
@@ -59,6 +58,15 @@ do_install() {
 	install -d ${D}${libdir}
 	install -m 0755 ${S}/CPP/7zip/Bundles/Format7zF/b/${INSTALLDIR}/7z.so ${D}${libdir}/lib7z.so
 	ln -rsn ${D}${libdir}/lib7z.so ${D}${bindir}/7z.so
+
+	# install headers (for development) and readme (for version information)
+	for header_file in $(find ${S}/CPP/${BPN} ${S}/CPP/Common ${S}/C -name "*.h"); do
+		header_dir=$(dirname $(echo $header_file | sed "s|${S}/||"))
+		install -d ${D}${includedir}/${BPN}/$header_dir
+		install -m 0644 $header_file ${D}${includedir}/${BPN}/$header_dir
+	done
+	install -d ${D}${includedir}/${BPN}/DOC
+	install -m 0644 ${S}/DOC/readme.txt ${D}${includedir}/${BPN}/DOC
 }
 
 PROVIDES += "p7zip"

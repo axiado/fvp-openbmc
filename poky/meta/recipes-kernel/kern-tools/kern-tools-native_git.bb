@@ -11,13 +11,12 @@ LIC_FILES_CHKSUM = "\
 
 DEPENDS += "git-replacement-native"
 
-SRCREV = "bfca22a52ec54c77ed0d34a56338bc1fe0a3b0db"
+SRCREV = "f589e1df23251d8319063da0a61c1016b2a0bf85"
 PV = "0.3+git"
 
 inherit native
 
 SRC_URI = "git://git.yoctoproject.org/yocto-kernel-tools.git;branch=master;protocol=https"
-S = "${WORKDIR}/git"
 
 do_configure() {
 	:

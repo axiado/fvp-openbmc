@@ -3,13 +3,15 @@ inherit uboot-config
 CONVERSIONTYPES += "fitImage"
 
 CONVERSION_CMD:fitImage = "run_assemble_fitimage ${IMAGE_NAME}.${type}"
-INITRAMFS_IMAGE="${IMAGE_NAME}.cpio.${INITRAMFS_CTYPE}"
-KERNEL_OUTPUT_DIR="${DEPLOY_DIR_IMAGE}"
+INITRAMFS_IMAGE = "${IMAGE_NAME}.cpio.${INITRAMFS_CTYPE}"
+KERNEL_OUTPUT_DIR = "${DEPLOY_DIR_IMAGE}"
 
 FIT_KERNEL_COMP_ALG ?= "none"
 FIT_KERNEL_COMP_ALG_EXTENSION ?= ""
 
-do_image_cpio[depends] += "virtual/kernel:do_deploy"
+# Only depend on kernel if we're not being bundled into the kernel
+# (to avoid circular dependency)
+do_image_cpio[depends] += "${@'' if d.getVar('IMAGE_BASENAME') in d.getVar('INITRAMFS_IMAGE') else 'virtual/kernel:do_deploy'}"
 
 run_assemble_fitimage() {
     export linux_comp="${FIT_KERNEL_COMP_ALG}"

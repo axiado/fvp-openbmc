@@ -4,15 +4,14 @@ FVP_PROVIDER ?= "fvp-base-a-aem-native"
 FVP_EXE ?= "FVP_Base_RevC-2xAEMvA"
 
 # Network
-# First Ethernet controller
-FVP_CONFIG[bp.virtio_net.enabled] = "1"
+FVP_CONFIG[bp.hostbridge.interfaceName] = "BmcNic"
+FVP_CONFIG[bp.hostbridge.userNetworking] = "1"
 FVP_CONFIG[bp.virtio_net.hostbridge.interfaceName] = "RedfishHI"
 
 # Second Ethernet controller
 FVP_CONFIG[bp.smsc_91c111.enabled] = "1"
-FVP_CONFIG[bp.hostbridge.interfaceName] = "BmcNic"
-FVP_CONFIG[bp.hostbridge.userNetworking]="1"
 FVP_CONFIG[bp.hostbridge.userNetPorts] = "4222=22,4223=443,4224=80"
+FVP_CONFIG[bp.virtio_net.enabled] = "1"
 
 # Disable dc4 device for uart 1-3
 FVP_CONFIG[bp.pl011_uart1.enable_dc4] = "0"
@@ -45,10 +44,13 @@ FVP_CONFIG[bp.virtio_rng.diagnostics] = "1"
 FVP_CONFIG[cache_state_modelled] ?= "0"
 
 # Enable MMC support
-FVP_CONFIG[bp.mmc.p_mmc_file]="obmc-phosphor-image-fvp.wic"
+FVP_CONFIG[bp.mmc.p_mmc_file] = "obmc-phosphor-image-fvp.wic"
 # use pad instead of silently truncate emmc image
-FVP_CONFIG[bp.mmc.support_unpadded_images]="1"
-FVP_CONFIG[bp.mmc.diagnostics]="0x1"
+FVP_CONFIG[bp.mmc.support_unpadded_images] = "1"
+FVP_CONFIG[bp.mmc.diagnostics] = "0x1"
+
+# Rate limit FVP to mitigate clock sync issues
+FVP_CONFIG[bp.vis.rate_limit-enable] = "1"
 
 # VIRTIO P9
-FVP_CONFIG[bp.virtiop9device.root_path]="/tmp/hostsharedir"
+FVP_CONFIG[bp.virtiop9device.root_path] = "/tmp/hostsharedir"

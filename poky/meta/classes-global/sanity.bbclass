@@ -299,6 +299,11 @@ def check_path_length(filepath, pathname, limit):
         return "The length of %s is longer than %s, this would cause unexpected errors, please use a shorter path.\n" % (pathname, limit)
     return ""
 
+def check_non_ascii(filepath, pathname):
+    if(not filepath.isascii()):
+        return "Non-ASCII character(s) in %s path (\"%s\") detected. This would cause build failures as we build software that doesn't support this.\n" % (pathname, filepath)
+    return ""
+
 def get_filesystem_id(path):
     import subprocess
     try:
@@ -509,12 +514,9 @@ def check_userns():
 # built buildtools-extended-tarball)
 #
 def check_gcc_version(sanity_data):
-    import subprocess
-    
-    build_cc, version = oe.utils.get_host_compiler_version(sanity_data)
-    if build_cc.strip() == "gcc":
-        if bb.utils.vercmp_string_op(version, "8.0", "<"):
-            return "Your version of gcc is older than 8.0 and will break builds. Please install a newer version of gcc (you could use the project's buildtools-extended-tarball or use scripts/install-buildtools).\n"
+    version = oe.utils.get_host_gcc_version(sanity_data)
+    if bb.utils.vercmp_string_op(version, "8.0", "<"):
+        return "Your version of gcc is older than 8.0 and will break builds. Please install a newer version of gcc (you could use the project's buildtools-extended-tarball or use scripts/install-buildtools).\n"
     return None
 
 # Tar version 1.24 and onwards handle overwriting symlinks correctly
@@ -602,9 +604,9 @@ def drop_v14_cross_builds(d):
                 bb.utils.remove(stamp + "*")
                 bb.utils.remove(workdir, recurse = True)
 
-def check_cpp_toolchain(d):
+def check_cpp_toolchain_flag(d, flag, error_message=None):
     """
-    it checks if the c++ compiling and linking to libstdc++ works properly in the native system
+    Checks if the g++ compiler supports the given flag
     """
     import shlex
     import subprocess
@@ -617,12 +619,12 @@ def check_cpp_toolchain(d):
     }
     """
 
-    cmd = shlex.split(d.getVar("BUILD_CXX")) + ["-x", "c++","-", "-o", "/dev/null", "-lstdc++"]
+    cmd = ["g++", "-x", "c++","-", "-o", "/dev/null", flag]
     try:
         subprocess.run(cmd, input=cpp_code, capture_output=True, text=True, check=True)
         return None
     except subprocess.CalledProcessError as e:
-        return f"An unexpected issue occurred during the C++ toolchain check: {str(e)}"
+        return error_message or f"An unexpected issue occurred during the C++ toolchain check: {str(e)}"
 
 def sanity_handle_abichanges(status, d):
     #
@@ -670,6 +672,8 @@ def check_sanity_sstate_dir_change(sstate_dir, data):
     return testmsg
 
 def check_sanity_version_change(status, d):
+    import glob
+
     # Sanity checks to be done when SANITY_VERSION or NATIVELSBSTRING changes
     # In other words, these tests run once in a given build directory and then 
     # never again until the sanity version or host distribution id/version changes.
@@ -695,11 +699,16 @@ def check_sanity_version_change(status, d):
     if not check_app_exists("${MAKE}", d):
         missing = missing + "GNU make,"
 
-    if not check_app_exists('${BUILD_CC}', d):
-        missing = missing + "C Compiler (%s)," % d.getVar("BUILD_CC")
+    if not check_app_exists('gcc', d):
+        missing = missing + "C Compiler (gcc),"
 
-    if not check_app_exists('${BUILD_CXX}', d):
-        missing = missing + "C++ Compiler (%s)," % d.getVar("BUILD_CXX")
+    if not check_app_exists('g++', d):
+        missing = missing + "C++ Compiler (g++),"
+
+    # installing emacs on Ubuntu 24.04 pulls in emacs-gtk -> libgcc-14-dev despite gcc being 13
+    # this breaks libcxx-native and compiler-rt-native builds so tell the user to fix things
+    if glob.glob("/usr/lib/gcc/*/14/libgcc_s.so") and not glob.glob("/usr/lib/gcc/*/14/libstdc++.so"):
+        status.addresult('libgcc-14-dev is installed and not libstdc++-14-dev which will break clang native compiles. Please remove one or install the other.')
 
     required_utilities = d.getVar('SANITY_REQUIRED_UTILITIES')
 
@@ -719,6 +728,7 @@ def check_sanity_version_change(status, d):
     # Check that TMPDIR isn't on a filesystem with limited filename length (eg. eCryptFS)
     import stat
     tmpdir = d.getVar('TMPDIR')
+    topdir = d.getVar('TOPDIR')
     status.addresult(check_create_long_filename(tmpdir, "TMPDIR"))
     tmpdirmode = os.stat(tmpdir).st_mode
     if (tmpdirmode & stat.S_ISGID):
@@ -727,14 +737,14 @@ def check_sanity_version_change(status, d):
         status.addresult("TMPDIR is setuid, please don't build in a setuid directory")
 
     # Check that a user isn't building in a path in PSEUDO_IGNORE_PATHS
-    pseudoignorepaths = d.getVar('PSEUDO_IGNORE_PATHS', expand=True).split(",")
+    pseudoignorepaths = (d.getVar('PSEUDO_IGNORE_PATHS', expand=True) or "").split(",")
     workdir = d.getVar('WORKDIR', expand=True)
     for i in pseudoignorepaths:
         if i and workdir.startswith(i):
             status.addresult("You are building in a path included in PSEUDO_IGNORE_PATHS " + str(i) + " please locate the build outside this path.\n")
 
     # Check if PSEUDO_IGNORE_PATHS and paths under pseudo control overlap
-    pseudoignorepaths = d.getVar('PSEUDO_IGNORE_PATHS', expand=True).split(",")
+    pseudoignorepaths = (d.getVar('PSEUDO_IGNORE_PATHS', expand=True) or "").split(",")
     pseudo_control_dir = "${D},${PKGD},${PKGDEST},${IMAGEROOTFS},${SDK_OUTPUT}"
     pseudocontroldir = d.expand(pseudo_control_dir).split(",")
     for i in pseudoignorepaths:
@@ -785,6 +795,9 @@ def check_sanity_version_change(status, d):
     # The length of TMPDIR can't be longer than 400
     status.addresult(check_path_length(tmpdir, "TMPDIR", 400))
 
+    # Check that TOPDIR does not contain non ascii chars (perl_5.40.0, Perl-native and shadow-native build failures)
+    status.addresult(check_non_ascii(topdir, "TOPDIR"))
+
     # Check that TMPDIR isn't located on nfs
     status.addresult(check_not_nfs(tmpdir, "TMPDIR"))
 
@@ -793,7 +806,12 @@ def check_sanity_version_change(status, d):
     status.addresult(check_case_sensitive(tmpdir, "TMPDIR"))
 
     # Check if linking with lstdc++ is failing
-    status.addresult(check_cpp_toolchain(d))
+    status.addresult(check_cpp_toolchain_flag(d, "-lstdc++"))
+
+    # Check if the C++ toochain support the "--std=gnu++20" flag
+    status.addresult(check_cpp_toolchain_flag(d, "--std=gnu++20",
+        "An error occurred during checking the C++ toolchain for '--std=gnu++20' support. "
+        "Please use a g++ compiler that supports C++20 (e.g. g++ version 10 onwards)."))
 
 def sanity_check_locale(d):
     """
@@ -813,10 +831,10 @@ def check_sanity_everybuild(status, d):
     if 0 == os.getuid():
         raise_sanity_error("Do not use Bitbake as root.", d)
 
-    # Check the Python version, we now have a minimum of Python 3.8
+    # Check the Python version, we now have a minimum of Python 3.9
     import sys
-    if sys.hexversion < 0x030800F0:
-        status.addresult('The system requires at least Python 3.8 to run. Please update your Python interpreter.\n')
+    if sys.hexversion < 0x030900F0:
+        status.addresult('The system requires at least Python 3.9 to run. Please update your Python interpreter.\n')
 
     # Check the bitbake version meets minimum requirements
     minversion = d.getVar('BB_MIN_VERSION')

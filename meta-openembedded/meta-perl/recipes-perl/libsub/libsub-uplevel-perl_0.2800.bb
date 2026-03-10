@@ -7,7 +7,7 @@ THIS IS NOT THE SORT OF THING YOU WANT TO DO EVERYDAY \
 "
 
 SECTION = "libs"
-HOMEPAGE= "https://metacpan.org/release/Sub-Uplevel"
+HOMEPAGE = "https://metacpan.org/release/Sub-Uplevel"
 
 LICENSE = "Artistic-1.0 | GPL-1.0-or-later"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=7f1207cd3108e4ade18448d81e6bcb6c"
@@ -19,7 +19,7 @@ SRC_URI = "${CPAN_MIRROR}/authors/id/D/DA/${CPAN_AUTHOR}/${CPAN_PACKAGE}-${PV}.t
 
 SRC_URI[sha256sum] = "b4f3f63b80f680a421332d8851ddbe5a8e72fcaa74d5d1d98f3c8cc4a3ece293"
 
-S = "${WORKDIR}/${CPAN_PACKAGE}-${PV}"
+S = "${UNPACKDIR}/${CPAN_PACKAGE}-${PV}"
 
 inherit cpan ptest-perl
 

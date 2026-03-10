@@ -20,6 +20,8 @@ CVE_STATUS[CVE-2023-7216] = "disputed: intended behaviour, see https://lists.gnu
 
 EXTRA_OECONF += "DEFAULT_RMT_DIR=${sbindir}"
 
+CFLAGS += "-std=gnu17"
+
 do_install () {
     autotools_do_install
     if [ "${base_bindir}" != "${bindir}" ]; then
@@ -35,10 +37,10 @@ do_install () {
 }
 
 do_compile_ptest() {
-    oe_runmake -C ${B}/gnu/ check
-    oe_runmake -C ${B}/lib/ check
-    oe_runmake -C ${B}/rmt/ check
-    oe_runmake -C ${B}/src/ check
+    # Forcibly regenerate this script so we get our --am-fmt option
+    rm -f ${S}/tests/testsuite
+    oe_runmake -C ${B}/tests/ testsuite
+
     oe_runmake -C ${B}/tests/ genfile
 }
 
@@ -64,10 +66,10 @@ do_install_ptest_base:append() {
 }
 
 # The tests need to run as a non-root user, so pull in the ptest user
-DEPENDS:append:class-target = "${@bb.utils.contains('PTEST_ENABLED', '1', ' ptest-runner', '', d)}"
-PACKAGE_WRITE_DEPS += "ptest-runner"
+DEPENDS:append:class-target = " ${@bb.utils.contains('PTEST_ENABLED', '1', 'ptest-runner', '', d)}"
+PACKAGE_WRITE_DEPS:append:class-target = " ${@bb.utils.contains('PTEST_ENABLED', '1', 'ptest-runner', '', d)}"
 
-RDEPENDS:${PN}-ptest += "ptest-runner"
+RDEPENDS:${PN}-ptest += "ptest-runner coreutils"
 
 PACKAGES =+ "${PN}-rmt"
 

@@ -1,5 +1,5 @@
 SUMMARY = "Run a subprocess in a pseudo terminal"
-HOMEPAGE = "http://ptyprocess.readthedocs.io/en/latest/"
+HOMEPAGE = "https://ptyprocess.readthedocs.io/en/latest/"
 SECTION = "devel/python"
 LICENSE = "ISC"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=cfdcd51fa7d5808da4e74346ee394490"
@@ -11,7 +11,7 @@ SRC_URI[sha256sum] = "5c5d0a3b48ceee0b48485e0c26037c0acd7d29765ca3fbb5cb3831d347
 
 inherit pypi python_flit_core ptest-python-pytest
 
-S = "${WORKDIR}/${SRCNAME}-${PV}"
+S = "${UNPACKDIR}/${SRCNAME}-${PV}"
 
 RDEPENDS:${PN} = "\
     python3-core \

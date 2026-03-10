@@ -9,14 +9,13 @@ DEPENDS += " \
         systemd \
         "
 PROVIDES += "virtual/obmc-host-ipmi-hw"
-SRCREV = "a46dd8f04760756848ffbfc337bd6e511848771b"
+SRCREV = "9867112ceb0ae372851384f8c580ebea6ba67217"
 PV = "1.0+git${SRCPV}"
 PR = "r1"
 
 SRC_URI = "git://github.com/openbmc/kcsbridge.git;branch=master;protocol=https"
 
 SYSTEMD_SERVICE:${PN} = "${PN}@${KCS_DEVICE}.service"
-S = "${WORKDIR}/git"
 
 inherit meson pkgconfig
 inherit systemd

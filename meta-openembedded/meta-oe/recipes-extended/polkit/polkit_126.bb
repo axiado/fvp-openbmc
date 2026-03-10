@@ -7,7 +7,6 @@ BUGTRACKER = "https://github.com/polkit-org/polkit/issues"
 
 SRC_URI = "git://github.com/polkit-org/polkit.git;protocol=https;branch=main"
 
-S = "${WORKDIR}/git"
 SRCREV = "d627b0d1e1108563658dabe3fb8d2a065e64df10"
 
 DEPENDS = "expat glib-2.0 duktape"
@@ -49,7 +48,7 @@ do_install:append() {
 	# Polkit unconditionally installs a systemd service, remove it on SysVinit
 	# systems to avoid "installed but not packaged file" error.
 	if ${@bb.utils.contains('DISTRO_FEATURES', 'sysvinit', 'true', 'false', d)}; then
-		rm -r ${D}${libdir}/systemd
+		rm -rf ${D}${nonarch_libdir}/systemd ${D}${libdir}/systemd
 	fi
 }
 

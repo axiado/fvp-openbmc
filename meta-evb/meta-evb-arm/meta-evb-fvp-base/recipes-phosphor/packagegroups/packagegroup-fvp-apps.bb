@@ -38,8 +38,8 @@ RDEPENDS:${PN}-system = " \
         webui-vue \
         phosphor-host-postd \
         phosphor-post-code-manager \
-        redfish-hi \
         smbios-mdr \
         phosphor-ipmi-blobs \
+        redfish-hi \
         platform-init \
         "

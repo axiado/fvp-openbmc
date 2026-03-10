@@ -28,6 +28,8 @@ SRC_URI = "${SOURCEFORGE_MIRROR}/net-snmp/net-snmp-${PV}.tar.gz \
            file://0011-ac_add_search_path.m4-keep-consistent-between-32bit-.patch \
            file://0012-Fix-configuration-of-NETSNMP_FD_MASK_TYPE.patch \
            file://0001-Android-Fix-the-build.patch \
+           file://netsnmp-swinst-crash.patch \
+           file://net-snmp-5.9.4-kernel-6.7.patch \
           "
 SRC_URI[sha256sum] = "8b4de01391e74e3c7014beb43961a2d6d6fa03acc34280b9585f4930745b0544"
 
@@ -44,8 +46,6 @@ PARALLEL_MAKE = ""
 CCACHE = ""
 CLEANBROKEN = "1"
 
-TARGET_CC_ARCH += "${LDFLAGS}"
-
 PACKAGECONFIG ??= "${@bb.utils.filter('DISTRO_FEATURES', 'ipv6 systemd', d)} des smux"
 PACKAGECONFIG[des] = "--enable-des, --disable-des"
 PACKAGECONFIG[elfutils] = "--with-elf, --without-elf, elfutils"
@@ -55,6 +55,8 @@ PACKAGECONFIG[perl] = "--enable-embedded-perl --with-perl-modules=yes, --disable
 PACKAGECONFIG[smux] = ""
 PACKAGECONFIG[systemd] = "--with-systemd, --without-systemd"
 
+SYSCONTACT_DISTRO ?= "no-contact-set@example.com"
+
 EXTRA_OECONF = " \
     --enable-shared \
     --disable-manuals \
@@ -63,6 +65,7 @@ EXTRA_OECONF = " \
     --with-persistent-directory=${localstatedir}/lib/net-snmp \
     --with-endianness=${@oe.utils.conditional('SITEINFO_ENDIANNESS', 'le', 'little', 'big', d)} \
     --with-mib-modules='${MIB_MODULES}' \
+    --with-sys-contact='${SYSCONTACT_DISTRO}' \
 "
 
 MIB_MODULES = ""

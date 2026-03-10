@@ -10,12 +10,12 @@ create_log()
     local service="xyz.openbmc_project.Logging"
     local object_path="/xyz/openbmc_project/logging"
     local interface="xyz.openbmc_project.Logging.Create"
-    local message="Fan status abnormal: $FAN_FAIL_REASON"
+    local message="Fan status LED asserted"
     local severity="xyz.openbmc_project.Logging.Entry.Level.Error"
     local arg="CALLOUT_INVENTORY_PATH"
     local value="/xyz/openbmc_project/inventory/fan"
 
-    echo "Creating log: $message"
+    echo "FAN status LED asserted by $FAN_FAIL_REASON"
     busctl call "$service" "$object_path" "$interface" Create "ssa{ss}" "$message" "$severity" 1 "$arg" "$value"
 }
 
@@ -78,15 +78,30 @@ do
     fan_status=$FAN_STATUS_NORMAL
     FAN_FAIL_REASON=""
 
+    # check presence service is active
+    presence_active=$(systemctl is-active xyz.openbmc_project.gpiopresence.service)
+    if [ "$presence_active" != "active" ]; then
+        echo "Presence service is not active"
+        continue
+    fi
+    # check fan sensor service is active
+    sensor_active=$(systemctl is-active xyz.openbmc_project.fansensor.service)
+    if [ "$sensor_active" != "active" ]; then
+        echo "Fan sensor service is not active"
+        continue
+    fi
+
     # FCB1 ~ FCB6
     for i in {1..6}
     do
         # Check the presence of each FCB
-        presence=$(busctl get-property xyz.openbmc_project.Inventory.Manager \
-            /xyz/openbmc_project/inventory/system/board/Minerva_CMM/FCB_"${i}" \
-            xyz.openbmc_project.Inventory.Item Present | awk '{print $NF}')
+        presence=$(
+            busctl introspect xyz.openbmc_project.gpiopresence \
+                /xyz/openbmc_project/GPIODeviceDetected/FanControlBoard"${i}" \
+                > /dev/null 2>&1; echo $?
+        )
 
-        if [ "$presence" != "true" ]; then
+        if [ "$presence" != "0" ]; then
             fan_status=$FAN_STATUS_ABNORMAL
             FAN_FAIL_REASON="FCB$i not present"
             break

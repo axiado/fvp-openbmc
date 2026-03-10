@@ -9,7 +9,7 @@ LICENSE = "LGPL-2.1-only"
 LIC_FILES_CHKSUM = "file://COPYING;md5=dcf3c825659e82539645da41a7908589"
 
 HOMEPAGE = "http://directfb.org"
-DEPENDS = "jpeg libpng sysfsutils"
+DEPENDS = "jpeg libpng"
 
 SRC_URI = "http://downloads.yoctoproject.org/mirror/sources/DirectFB-${PV}.tar.gz \
            file://configurefix.patch \
@@ -28,14 +28,11 @@ SRC_URI = "http://downloads.yoctoproject.org/mirror/sources/DirectFB-${PV}.tar.g
            file://0001-libdirect-remove-use-of-keyword-register.patch \
            "
 
-S = "${WORKDIR}/DirectFB-${PV}"
+S = "${UNPACKDIR}/DirectFB-${PV}"
 
 LDFLAGS:append = " -lm"
 
 CXXFLAGS:append:toolchain-clang = " -Wno-error=dtor-typedef"
-
-# Workaround for linking issues seen with armv7a + gold
-LDFLAGS:append:arm = "${@bb.utils.contains('DISTRO_FEATURES', 'ld-is-gold', ' -fuse-ld=bfd ', '', d)}"
 
 BINCONFIG = "${bindir}/directfb-config"
 

@@ -21,11 +21,11 @@ SRCREV_build = "16e987def3d7d8f7d30805eb95cef69e52a87dbc"
 
 SRCREV_FORMAT = "core_extras_libhardware_libselinux_build"
 SRC_URI = " \
-    git://${ANDROID_MIRROR}/platform/system/core;name=core;protocol=https;nobranch=1;destsuffix=git/system/core \
-    git://${ANDROID_MIRROR}/platform/system/extras;name=extras;protocol=https;nobranch=1;destsuffix=git/system/extras \
-    git://${ANDROID_MIRROR}/platform/hardware/libhardware;name=libhardware;protocol=https;nobranch=1;destsuffix=git/hardware/libhardware \
-    git://${ANDROID_MIRROR}/platform/external/libselinux;name=libselinux;protocol=https;nobranch=1;destsuffix=git/external/libselinux \
-    git://${ANDROID_MIRROR}/platform/build;name=build;protocol=https;nobranch=1;destsuffix=git/build \
+    git://${ANDROID_MIRROR}/platform/system/core;name=core;protocol=https;nobranch=1;destsuffix=${BB_GIT_DEFAULT_DESTSUFFIX}/system/core \
+    git://${ANDROID_MIRROR}/platform/system/extras;name=extras;protocol=https;nobranch=1;destsuffix=${BB_GIT_DEFAULT_DESTSUFFIX}/system/extras \
+    git://${ANDROID_MIRROR}/platform/hardware/libhardware;name=libhardware;protocol=https;nobranch=1;destsuffix=${BB_GIT_DEFAULT_DESTSUFFIX}/hardware/libhardware \
+    git://${ANDROID_MIRROR}/platform/external/libselinux;name=libselinux;protocol=https;nobranch=1;destsuffix=${BB_GIT_DEFAULT_DESTSUFFIX}/external/libselinux \
+    git://${ANDROID_MIRROR}/platform/build;name=build;protocol=https;nobranch=1;destsuffix=${BB_GIT_DEFAULT_DESTSUFFIX}/build \
     file://core/0001-adb-remove-selinux-extensions.patch;patchdir=system/core \
     file://core/0002-adb-Use-local-sockets-where-appropriate.patch;patchdir=system/core \
     file://core/0003-adb-define-shell-command.patch;patchdir=system/core \
@@ -48,6 +48,7 @@ SRC_URI = " \
     file://core/0001-memory.h-Always-define-strlcpy-for-glibc-based-syste.patch;patchdir=system/core \
     file://extras/0001-ext4_utils-remove-selinux-extensions.patch;patchdir=system/extras \
     file://extras/0002-ext4_utils-add-o-argument-to-preserve-ownership.patch;patchdir=system/extras \
+    file://extras/0003-ext4_utils-drop-unused-parameter-from-allocate_inode.patch;patchdir=system/extras \
     file://libselinux/0001-Remove-bionic-specific-calls.patch;patchdir=external/libselinux \
     file://libselinux/0001-libselinux-Do-not-define-gettid-if-glibc-2.30-is-use.patch;patchdir=external/libselinux \
     file://android-tools-adbd.service \
@@ -61,7 +62,6 @@ SRC_URI = " \
 "
 
 
-S = "${WORKDIR}/git"
 B = "${WORKDIR}/${BPN}"
 
 # http://errors.yoctoproject.org/Errors/Details/133881/
@@ -187,8 +187,3 @@ FILES:${PN}-fstools = "\
 "
 
 BBCLASSEXTEND = "native"
-
-# http://errors.yoctoproject.org/Errors/Details/766881/
-# android-tools/5.1.1.r37/git/system/core/adb/adb_auth_host.c:86:23: error: passing argument 2 of 'RSA_get0_key' from incompatible pointer type [-Wincompatible-pointer-types]
-# android-tools/5.1.1.r37/git/system/core/adb/adb_auth_host.c:86:27: error: passing argument 3 of 'RSA_get0_key' from incompatible pointer type [-Wincompatible-pointer-types]
-CC += "-Wno-error=incompatible-pointer-types"

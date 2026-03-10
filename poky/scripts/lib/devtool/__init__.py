@@ -147,6 +147,8 @@ def check_workspace_recipe(workspace, pn, checksrc=True, bbclassextend=False):
     Check that a recipe is in the workspace and (optionally) that source
     is present.
     """
+    import bb.runqueue
+    _, pn = bb.runqueue.split_mc(pn)
 
     workspacepn = pn
 
@@ -234,7 +236,7 @@ def setup_git_repo(repodir, version, devbranch, basetag='devtool-base', d=None):
             f.write(line)
 
     bb.process.run('git checkout -b %s' % devbranch, cwd=repodir)
-    bb.process.run('git tag -f %s' % basetag, cwd=repodir)
+    bb.process.run('git tag -f --no-sign %s' % basetag, cwd=repodir)
 
     # if recipe unpacks another git repo inside S, we need to declare it as a regular git submodule now,
     # so we will be able to tag branches on it and extract patches when doing finish/update on the recipe
@@ -256,7 +258,7 @@ def setup_git_repo(repodir, version, devbranch, basetag='devtool-base', d=None):
                     oe.patch.GitApplyTree.commitIgnored("Add additional submodule from SRC_URI", dir=os.path.join(root, ".."), d=d)
                     found = False
     if os.path.exists(os.path.join(repodir, '.gitmodules')):
-        bb.process.run('git submodule foreach --recursive  "git tag -f %s"' % basetag, cwd=repodir)
+        bb.process.run('git submodule foreach --recursive  "git tag -f --no-sign %s"' % basetag, cwd=repodir)
 
 def recipe_to_append(recipefile, config, wildcard=False):
     """

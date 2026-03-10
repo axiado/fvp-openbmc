@@ -8,13 +8,11 @@ DEPENDS += " \
   phosphor-ipmi-host \
   phosphor-logging \
   "
-SRCREV = "b17504d71833f695b1459e5b09eaf548e3a022f4"
+SRCREV = "ec3db72f83df93be6cab174dabad2a1fcc84ecef"
 PV = "0.1+git${SRCPV}"
 PR = "r1"
 
 SRC_URI = "git://github.com/openbmc/phosphor-ipmi-blobs;branch=master;protocol=https"
-
-S = "${WORKDIR}/git"
 
 inherit meson pkgconfig
 

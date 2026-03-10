@@ -6,7 +6,6 @@ DESCRIPTION = "\
  libpam-ldapd packages but is not very useful by itself. \
  "
 HOMEPAGE = "https://github.com/arthurdejong/nss-pam-ldapd"
-S = "${WORKDIR}/git"
 SECTION = "base"
 LICENSE = "LGPL-2.1-or-later"
 LIC_FILES_CHKSUM = "file://COPYING;md5=fbc093901857fcd118f065f900982c24"
@@ -18,7 +17,7 @@ SRC_URI = "\
         file://nslcd.init \
         file://nslcd.service \
         "
-SRCREV="5f4aacc4a96b452c11e7a1a5625e86d29cb38b1e"
+SRCREV = "8ddb983a546f632986a84a784c4625110f7782a2"
 
 SYSTEMD_SERVICE:${PN} = "nslcd.service"
 

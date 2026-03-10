@@ -15,12 +15,16 @@ SPDX_SUPPLIER[doc] = "The SPDX PackageSupplier field for SPDX packages created f
     is the contact information for the person or organization who is doing the \
     build."
 
+SPDX_ARCHIVE_SOURCES ??= "0"
+SPDX_ARCHIVE_PACKAGED ??= "0"
 
 def get_namespace(d, name):
     import uuid
     namespace_uuid = uuid.uuid5(uuid.NAMESPACE_DNS, d.getVar("SPDX_UUID_NAMESPACE"))
     return "%s/%s-%s" % (d.getVar("SPDX_NAMESPACE_PREFIX"), name, str(uuid.uuid5(namespace_uuid, name)))
 
+SPDX_PACKAGE_VERSION ??= "${PV}"
+SPDX_PACKAGE_VERSION[doc] = "The version of a package, versionInfo in recipe, package and image"
 
 def create_annotation(d, comment):
     from datetime import datetime, timezone
@@ -135,6 +139,11 @@ def add_package_files(d, doc, spdx_pkg, topdir, get_spdxid, get_types, *, archiv
     spdx_files = []
 
     file_counter = 1
+
+    check_compiled_sources = d.getVar("SPDX_INCLUDE_COMPILED_SOURCES") == "1"
+    if check_compiled_sources:
+        compiled_sources, types = oe.spdx_common.get_compiled_sources(d)
+        bb.debug(1, f"Total compiled files: {len(compiled_sources)}")
     for subdir, dirs, files in os.walk(topdir):
         dirs[:] = [d for d in dirs if d not in ignore_dirs]
         if subdir == str(topdir):
@@ -145,6 +154,10 @@ def add_package_files(d, doc, spdx_pkg, topdir, get_spdxid, get_types, *, archiv
             filename = str(filepath.relative_to(topdir))
 
             if not filepath.is_symlink() and filepath.is_file():
+                # Check if file is compiled
+                if check_compiled_sources:
+                     if not oe.spdx_common.is_compiled_source(filename, compiled_sources, types):
+                          continue
                 spdx_file = oe.spdx.SPDXFile()
                 spdx_file.SPDXID = get_spdxid(file_counter)
                 for t in get_types(filepath):
@@ -279,21 +292,21 @@ def collect_dep_recipes(d, doc, spdx_recipe):
 
     deps = oe.spdx_common.get_spdx_deps(d)
 
-    for dep_pn, dep_hashfn, in_taskhash in deps:
+    for dep in deps:
         # If this dependency is not calculated in the taskhash skip it.
         # Otherwise, it can result in broken links since this task won't
         # rebuild and see the new SPDX ID if the dependency changes
-        if not in_taskhash:
+        if not dep.in_taskhash:
             continue
 
-        dep_recipe_path = oe.sbom.doc_find_by_hashfn(deploy_dir_spdx, package_archs, "recipe-" + dep_pn, dep_hashfn)
+        dep_recipe_path = oe.sbom.doc_find_by_hashfn(deploy_dir_spdx, package_archs, "recipe-" + dep.pn, dep.hashfn)
         if not dep_recipe_path:
-            bb.fatal("Cannot find any SPDX file for recipe %s, %s" % (dep_pn, dep_hashfn))
+            bb.fatal("Cannot find any SPDX file for recipe %s, %s" % (dep.pn, dep.hashfn))
 
         spdx_dep_doc, spdx_dep_sha1 = oe.sbom.read_doc(dep_recipe_path)
 
         for pkg in spdx_dep_doc.packages:
-            if pkg.name == dep_pn:
+            if pkg.name == dep.pn:
                 spdx_dep_recipe = pkg
                 break
         else:
@@ -352,34 +365,33 @@ def add_download_packages(d, doc, recipe):
     for download_idx, src_uri in enumerate(d.getVar('SRC_URI').split()):
         f = bb.fetch2.FetchData(src_uri, d)
 
-        for name in f.names:
-            package = oe.spdx.SPDXPackage()
-            package.name = "%s-source-%d" % (d.getVar("PN"), download_idx + 1)
-            package.SPDXID = oe.sbom.get_download_spdxid(d, download_idx + 1)
+        package = oe.spdx.SPDXPackage()
+        package.name = "%s-source-%d" % (d.getVar("PN"), download_idx + 1)
+        package.SPDXID = oe.sbom.get_download_spdxid(d, download_idx + 1)
 
-            if f.type == "file":
-                continue
+        if f.type == "file":
+            continue
 
-            if f.method.supports_checksum(f):
-                for checksum_id in CHECKSUM_LIST:
-                    if checksum_id.upper() not in oe.spdx.SPDXPackage.ALLOWED_CHECKSUMS:
-                        continue
+        if f.method.supports_checksum(f):
+            for checksum_id in CHECKSUM_LIST:
+                if checksum_id.upper() not in oe.spdx.SPDXPackage.ALLOWED_CHECKSUMS:
+                    continue
 
-                    expected_checksum = getattr(f, "%s_expected" % checksum_id)
-                    if expected_checksum is None:
-                        continue
+                expected_checksum = getattr(f, "%s_expected" % checksum_id)
+                if expected_checksum is None:
+                    continue
 
-                    c = oe.spdx.SPDXChecksum()
-                    c.algorithm = checksum_id.upper()
-                    c.checksumValue = expected_checksum
-                    package.checksums.append(c)
+                c = oe.spdx.SPDXChecksum()
+                c.algorithm = checksum_id.upper()
+                c.checksumValue = expected_checksum
+                package.checksums.append(c)
 
-            package.downloadLocation = oe.spdx_common.fetch_data_to_uri(f, name)
-            doc.packages.append(package)
-            doc.add_relationship(doc, "DESCRIBES", package)
-            # In the future, we might be able to do more fancy dependencies,
-            # but this should be sufficient for now
-            doc.add_relationship(package, "BUILD_DEPENDENCY_OF", recipe)
+        package.downloadLocation = oe.spdx_common.fetch_data_to_uri(f, f.name)
+        doc.packages.append(package)
+        doc.add_relationship(doc, "DESCRIBES", package)
+        # In the future, we might be able to do more fancy dependencies,
+        # but this should be sufficient for now
+        doc.add_relationship(package, "BUILD_DEPENDENCY_OF", recipe)
 
 def get_license_list_version(license_data, d):
     # Newer versions of the SPDX license list are SemVer ("MAJOR.MINOR.MICRO"),
@@ -437,7 +449,7 @@ python do_create_spdx() {
 
     recipe = oe.spdx.SPDXPackage()
     recipe.name = d.getVar("PN")
-    recipe.versionInfo = d.getVar("PV")
+    recipe.versionInfo = d.getVar("SPDX_PACKAGE_VERSION")
     recipe.SPDXID = oe.sbom.get_recipe_spdxid(d)
     recipe.supplier = d.getVar("SPDX_SUPPLIER")
     if bb.data.inherits_class("native", d) or bb.data.inherits_class("cross", d):
@@ -546,7 +558,7 @@ python do_create_spdx() {
 
             spdx_package.SPDXID = oe.sbom.get_package_spdxid(pkg_name)
             spdx_package.name = pkg_name
-            spdx_package.versionInfo = d.getVar("PV")
+            spdx_package.versionInfo = d.getVar("SPDX_PACKAGE_VERSION")
             spdx_package.licenseDeclared = convert_license_to_spdx(package_license, license_data, package_doc, d, found_licenses)
             spdx_package.supplier = d.getVar("SPDX_SUPPLIER")
 
@@ -822,7 +834,7 @@ def combine_spdx(d, rootfs_name, rootfs_deploydir, rootfs_spdxid, packages, spdx
 
     image = oe.spdx.SPDXPackage()
     image.name = d.getVar("PN")
-    image.versionInfo = d.getVar("PV")
+    image.versionInfo = d.getVar("SPDX_PACKAGE_VERSION")
     image.SPDXID = rootfs_spdxid
     image.supplier = d.getVar("SPDX_SUPPLIER")
 

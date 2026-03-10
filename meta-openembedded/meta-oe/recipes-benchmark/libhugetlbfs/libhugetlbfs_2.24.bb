@@ -3,8 +3,7 @@ HOMEPAGE = "https://github.com/libhugetlbfs/libhugetlbfs"
 LICENSE = "LGPL-2.1-only"
 LIC_FILES_CHKSUM = "file://LGPL-2.1;md5=2d5025d4aa3495befef8f17206a5b0a1"
 
-DEPENDS = "sysfsutils"
-RDEPENDS:${PN} += "bash python3-core"
+RDEPENDS:${PN} += "bash"
 RDEPENDS:${PN}-tests += "bash python3-core python3-resource"
 
 PE = "1"
@@ -29,7 +28,6 @@ SRC_URI = " \
 
 UPSTREAM_CHECK_GITTAGREGEX = "(?P<pver>\d+(\.\d+)+)"
 
-S = "${WORKDIR}/git"
 
 COMPATIBLE_HOST = "(i.86|x86_64|powerpc|powerpc64|aarch64|arm).*-linux*"
 
@@ -42,23 +40,17 @@ EXTRA_OEMAKE = "'ARCH=${LIBHUGETLBFS_ARCH}' 'OPT=${CFLAGS}' 'CC=${CC}' ${LIBARGS
 PARALLEL_MAKE = ""
 CFLAGS += "-fexpensive-optimizations -frename-registers -fomit-frame-pointer -g0"
 
-export HUGETLB_LDSCRIPT_PATH="${S}/ldscripts"
+export HUGETLB_LDSCRIPT_PATH = "${S}/ldscripts"
 
 TARGET_CC_ARCH += "${LDFLAGS}"
 
 LDFLAGS += "-B${S}"
 
-inherit autotools-brokensep cpan-base
+inherit autotools-brokensep
 
-#The CUSTOM_LDSCRIPTS doesn't work with the gold linker
 do_configure:prepend() {
-    if [ "${@bb.utils.filter('DISTRO_FEATURES', 'ld-is-gold', d)}" ]; then
-        sed -i 's/CUSTOM_LDSCRIPTS = yes/CUSTOM_LDSCRIPTS = no/'  Makefile.in
-    fi
-
     ln -sf ld.hugetlbfs ${S}/ld
     ln -sf ld.hugetlbfs ${S}/ld.bfd
-    ln -sf ld.hugetlbfs ${S}/ld.gold
     ln -sf ld.hugetlbfs ${S}/ld.lld
 }
 
