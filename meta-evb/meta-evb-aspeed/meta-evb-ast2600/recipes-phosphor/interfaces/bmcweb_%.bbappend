@@ -1,5 +1,5 @@
-EXTRA_OEMESON:append = " \
-    -Dredfish-dump-log=enabled \
+PACKAGECONFIG:append = " \
+    redfish-dump-log \
 "
 
 EXTRA_OEMESON = " \

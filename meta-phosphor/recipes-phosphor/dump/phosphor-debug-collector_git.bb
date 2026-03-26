@@ -28,12 +28,6 @@ PACKAGECONFIG[openpower-dumps-extension] = " \
        -Dopenpower-dumps-extension=enabled, \
        -Dopenpower-dumps-extension=disabled  \
 "
-
-PACKAGECONFIG[arm-dumps-extension] = " \
-       -Darm-dumps-extension=enabled, \
-       -Darm-dumps-extension=disabled  \
-"
-
 PACKAGECONFIG[xz] = "-Ddump-compression-algorithm=xz,,,,,gzip zstd"
 PACKAGECONFIG[gzip] = "-Ddump-compression-algorithm=gzip,,,,,xz zstd"
 PACKAGECONFIG[zstd] = "-Ddump-compression-algorithm=zstd,,,,zstd,xz gzip"

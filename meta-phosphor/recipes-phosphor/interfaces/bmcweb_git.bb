@@ -14,10 +14,10 @@ DEPENDS = " \
     ${@bb.utils.contains('PTEST_ENABLED', '1', 'gtest', '', d)} \
     ${@bb.utils.contains('PTEST_ENABLED', '1', 'gmock', '', d)} \
 "
-SRCREV = "622a94bd129fabea732ffcb18148c6b1600f7f6b"
+SRCREV = "40c288a6672019b1b4124e0a6528ebb49ddc3a52"
 PV = "1.0+git${SRCPV}"
 
-SRC_URI = "git://git.gitlab.arm.com/server_management/bmcweb.git;branch=fvp_devel;protocol=https"
+SRC_URI = "git://github.com/openbmc/bmcweb.git;branch=master;protocol=https"
 SRC_URI += " \
     file://run-ptest \
 "

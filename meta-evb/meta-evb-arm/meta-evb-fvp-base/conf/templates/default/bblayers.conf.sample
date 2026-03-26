@@ -15,6 +15,7 @@ BBLAYERS ?= " \
   ##OEROOT##/meta-arm/meta-arm-toolchain \
   ##OEROOT##/meta-arm/meta-arm-bsp \
   ##OEROOT##/meta-evb \
+  ##OEROOT##/meta-evb/meta-common \
   ##OEROOT##/meta-evb/meta-evb-arm/meta-evb-fvp-base \
 "
 

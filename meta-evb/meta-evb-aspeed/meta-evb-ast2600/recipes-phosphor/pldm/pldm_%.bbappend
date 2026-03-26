@@ -9,6 +9,8 @@ EXTRA_OEMESON:append = " \
   -Dtransport-implementation=af-mctp \
 "
 
+PACKAGECONFIG:append = " oem-arm"
+
 SRC_URI:append = " file://host_eid "
 
 do_install:append() {
