@@ -42,4 +42,5 @@ RDEPENDS:${PN}-system = " \
         phosphor-ipmi-blobs \
         redfish-hi \
         fvp-platform-init \
+        biosconfig-manager \
         "

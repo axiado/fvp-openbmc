@@ -9,4 +9,5 @@ RDEPENDS:${PN}-extras:append = " \
   usb-network \
   smbios-mdr \
   phosphor-ipmi-blobs \
+  biosconfig-manager \
 "
