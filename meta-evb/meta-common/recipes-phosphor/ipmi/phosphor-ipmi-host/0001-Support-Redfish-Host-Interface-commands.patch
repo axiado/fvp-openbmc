@@ -1,4 +1,4 @@
-From d50d4491e083f8aa1f9c7f39243ae95f0b8c6828 Mon Sep 17 00:00:00 2001
+From 14c9cd768665a07bd33b221e8fc938c937c3f0b3 Mon Sep 17 00:00:00 2001
 From: John Chung <john.chung@arm.com>
 Date: Thu, 13 Mar 2025 17:17:16 -0500
 Subject: [PATCH] Support Redfish Host Interface commands
@@ -12,10 +12,10 @@ Signed-off-by: John Chung <john.chung@arm.com>
 Change-Id: I0f85185d3c54927d9d2a3c75c025bd0c2483af20
 ---
  include/ipmid/api-types.hpp |   7 ++
- meson.build                 |   3 +-
- redfishhandler.cpp          | 132 ++++++++++++++++++++++++++++++++++++
+ meson.build                 |   4 +-
+ redfishhandler.cpp          | 165 ++++++++++++++++++++++++++++++++++++
  redfishhandler.hpp          |  11 +++
- 4 files changed, 152 insertions(+), 1 deletion(-)
+ 4 files changed, 186 insertions(+), 1 deletion(-)
  create mode 100644 redfishhandler.cpp
  create mode 100644 redfishhandler.hpp
 
@@ -45,10 +45,18 @@ index 52c68ee..f4c657f 100644
  namespace sbmr
  {
 diff --git a/meson.build b/meson.build
-index 93175d9..932c6ed 100644
+index 93175d9..b91bec2 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -298,6 +298,7 @@ libipmi20_src = [
+@@ -255,6 +255,7 @@ ipmid_pre = [
+     crypto,
+     ipmid_dep,
+     channellayer_dep,
++    userlayer_dep,
+ ]
+ 
+ transportoem_src = []
+@@ -298,6 +299,7 @@ libipmi20_src = [
      'read_fru_data.cpp',
      'sensordatahandler.cpp',
      'user_channel/channelcommands.cpp',
@@ -56,7 +64,7 @@ index 93175d9..932c6ed 100644
      generated_src,
      transportoem_src,
      storage_cmds_src,
-@@ -309,7 +310,7 @@ libipmi20_src = [
+@@ -309,7 +311,7 @@ libipmi20_src = [
  ipmi20_lib = library(
      'ipmi20',
      libipmi20_src,
@@ -67,10 +75,10 @@ index 93175d9..932c6ed 100644
      install_dir: get_option('libdir') / 'ipmid-providers',
 diff --git a/redfishhandler.cpp b/redfishhandler.cpp
 new file mode 100644
-index 0000000..3fa9df5
+index 0000000..9dc3c04
 --- /dev/null
 +++ b/redfishhandler.cpp
-@@ -0,0 +1,132 @@
+@@ -0,0 +1,165 @@
 +#include "redfishhandler.hpp"
 +
 +#include <openssl/pem.h>
@@ -97,8 +105,6 @@ index 0000000..3fa9df5
 +    std::string userName;
 +    std::string password;
 +    char buffer[bootstrapAccLen] = {};
-+    uint8_t userId = 1;
-+    ipmi::UsersTbl* userData;
 +    std::vector<uint8_t> dataOut;
 +
 +    if (ipmi::getChannelInfo(ctx->channel, chInfo) != ipmi::ccSuccess)
@@ -111,17 +117,52 @@ index 0000000..3fa9df5
 +    // TODO : Handle Bootstrap Control
 +    (void)bootstrapControl;
 +
-+    // TODO : now only return the default username and password
-+    userData = ipmi::getUserAccessObject().getUsersTblPtr();
-+    if (!userData->user[userId].userInSystem)
-+    {
-+        return ipmi::responseUnspecifiedError();
-+    }
++    // TODO : Generate random username and password
++    userName = "redfish_hi";
++    password = "0penBmc@RFHI";
 +
-+    ipmiUserGetUserName(userId, userName);
-+    SecureString securityPassword = ipmiUserGetPassword(userName);
++    // Workaround: Create user account by async call due to FVP timeout.
++    lg2::info("Create bootstrap account : {ACCOUNT}", "ACCOUNT", userName);
++    std::shared_ptr<sdbusplus::asio::connection> dbus = getSdBus();
++    auto method = dbus->new_method_call(userMgrService, userMgrObjBasePath,
++                                        userMgrInterface, createUserMethod);
++    std::vector<std::string> userGroup = {"redfish", "redfishhi", "ipmi"};
++    method.append(userName, userGroup, "priv-admin", true);
++    dbus->async_send(method, [dbus, userName,
++                              password](boost::system::error_code ec,
++                                        sdbusplus::message_t& reply) {
++        if (ec || reply.is_method_error())
++        {
++            lg2::error("User name may exists.");
++        }
 +
-+    password = securityPassword;
++        /* Setup Password */
++        lg2::info("Set bootstrap account password : {PASSWD}", "PASSWD",
++                  password);
++        SecureString secureString(password.c_str());
++        Cc rc = ipmi::ipmiSetSpecialUserPassword(userName, secureString);
++        if (rc != ipmi::ccSuccess)
++        {
++            lg2::error(
++                "Failed to set User name password {PASSWORD} error code {ERROR}.",
++                "PASSWORD", password, "ERROR", rc);
++            return;
++        }
++
++        /* Manually add Redfish HI group */
++        lg2::info("Set bootstrap account to Redfish Host Interface group");
++        std::vector<std::string> userGroup = {"redfish", "redfishhi", "ipmi"};
++        std::string userPath(userObjBasePath);
++        userPath += "/" + userName;
++        auto method =
++            dbus->new_method_call(userMgrService, userPath.c_str(),
++                                  dBusPropertiesInterface, setPropertiesMethod);
++        method.append(usersInterface, userGrpProperty,
++                      std::variant<std::vector<std::string>>(userGroup));
++        dbus->call(method);
++
++        return;
++    });
 +
 +    /* Respond data */
 +    memcpy(buffer, userName.c_str(), userName.length());

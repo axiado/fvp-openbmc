@@ -1,4 +1,4 @@
-From bd5dbbbecceeaec0bc08c682f7720897c711a555 Mon Sep 17 00:00:00 2001
+From 9288fdd6c163baa0d52bd50f998c0ee0406fb55e Mon Sep 17 00:00:00 2001
 From: Ann Cheng <ann.cheng@arm.com>
 Date: Mon, 15 Sep 2025 14:19:59 +0800
 Subject: [PATCH] meta-evb: meta-evb-arm: Add Send Platform Error Record
