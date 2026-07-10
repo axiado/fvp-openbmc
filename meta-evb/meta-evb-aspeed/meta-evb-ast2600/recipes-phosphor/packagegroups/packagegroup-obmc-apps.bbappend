@@ -10,4 +10,5 @@ RDEPENDS:${PN}-extras:append = " \
   smbios-mdr \
   phosphor-ipmi-blobs \
   biosconfig-manager \
+  phosphor-state-manager \
 "
