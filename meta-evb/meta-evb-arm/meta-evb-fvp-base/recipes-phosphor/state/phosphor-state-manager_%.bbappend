@@ -12,6 +12,7 @@ SRC_URI:append = " \
     file://phosphor-reset-chassis-running@.service \
     file://host-on-host-check@.service \
     file://mctp-serial-binding.service \
+    file://mctp-binding.sh \
     file://obmc-host-already-on@.target \
     "
 
@@ -39,6 +40,9 @@ RDEPENDS:${PN}:append = " bash"
 
 
 do_install:append() {
+    install -d ${D}${sbindir}
+    install -m 0755 ${UNPACKDIR}/mctp-binding.sh ${D}${sbindir}/mctp-binding.sh
+
     install -d ${D}${systemd_system_unitdir}
     install -m 0644 ${UNPACKDIR}/*.service ${D}${systemd_system_unitdir}/
     install -m 0644 ${UNPACKDIR}/*.target ${D}${systemd_system_unitdir}/

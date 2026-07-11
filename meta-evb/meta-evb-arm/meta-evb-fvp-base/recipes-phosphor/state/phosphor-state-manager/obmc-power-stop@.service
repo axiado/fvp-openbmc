@@ -8,7 +8,7 @@ Conflicts=obmc-chassis-poweron@%i.target
 
 [Service]
 RemainAfterExit=yes
-ExecStartPre=systemctl stop mctpd
+ExecStartPre=-/bin/sh -c 'busctl call au.com.codeconstruct.MCTP1 /au/com/codeconstruct/mctp1/networks/1/endpoints/18 au.com.codeconstruct.MCTP.Endpoint1 Remove'
 ExecStart=/bin/sh -c "echo 0 > /tmp/hostsharedir/power"
 SyslogIdentifier=obmc-power-stop
 

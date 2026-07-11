@@ -43,4 +43,5 @@ RDEPENDS:${PN}-system = " \
         redfish-hi \
         fvp-platform-init \
         biosconfig-manager \
+        phosphor-state-manager \
         "

@@ -5,6 +5,6 @@ BindTo=obmc-host-already-on@0.target
 
 [Service]
 Restart=always
+RestartSec=30s
 RemainAfterExit=true
-ExecStart=systemctl start mctpd
-ExecStop=systemctl stop mctpd
+ExecStart=/usr/sbin/mctp-binding.sh
