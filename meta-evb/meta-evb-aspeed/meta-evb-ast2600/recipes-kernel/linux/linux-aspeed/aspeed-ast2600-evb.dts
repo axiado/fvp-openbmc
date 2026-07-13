@@ -15,6 +15,7 @@
 		serial0 = &uart1;
 		serial2 = &uart3;
 		serial4 = &uart5;
+		serial7 = &uart6;
 	};
 
 	chosen {
@@ -203,6 +204,10 @@
 		spi-rx-bus-width = <4>;
 		spi-max-frequency = <100000000>;
 	};
+};
+
+&uart6 {
+  status = "okay";
 };
 
 &uart5 {
