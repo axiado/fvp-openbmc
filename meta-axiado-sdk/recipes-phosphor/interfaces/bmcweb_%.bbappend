@@ -1,0 +1,1 @@
+# PACKAGECONFIG += "redfish-dbus-log"

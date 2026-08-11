@@ -1,0 +1,9 @@
+bootargs=console=ttyPS3,115200 maxcpus=4 nr_cpus=4 earlycon hugepages=16
+bootdelay=2
+baudrate=115200
+bootside=a
+bootcount=0
+bootlimit=3
+bootcmd=ax3000_secure_boot
+secure_boot=0
+default_bootcmd=ax3000_secure_boot
