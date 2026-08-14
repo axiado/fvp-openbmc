@@ -1,4 +1,4 @@
-SERIAL_DEVICE = "ttyS2"
+SERIAL_DEVICE = "ttyPS0"
 
 PACKAGECONFIG:remove = "transport-null"
 PACKAGECONFIG:append = " \
