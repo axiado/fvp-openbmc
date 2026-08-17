@@ -1,9 +1,7 @@
-SRCREV = "1a1d852d66ff350ffba612a1fa91cc714cae0ea8"
+SRCREV = "7c374df5a84a15e4eae653aa221798cb14411cf4"
 SRCBRANCH = "dev-6.18-axiado"
 SRC_URI = "git://github.com/axiado/linux-axiado;protocol=https;branch=${SRCBRANCH}"
-SRC_URI += "file://kernel.scc \
-            file://kernel.cfg \
-            "
+SRC_URI += "file://kernel.cfg"
 
 LINUX_VERSION = "6.18.20"
 PV = "${LINUX_VERSION}+git"
