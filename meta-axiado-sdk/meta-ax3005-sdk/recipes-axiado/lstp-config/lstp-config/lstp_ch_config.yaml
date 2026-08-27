@@ -1,0 +1,57 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+# Reference config: one example of every supported LSTP channel type.
+# Illustrates YAML schema only — not tied to a specific MCU/board.
+---
+schema_version: 1
+channels:
+  0:
+    type: management
+    enabled: true
+    name: LSTP_DEVICE
+    lock_state: nonvolatile
+    config:
+      lstp_version: 1
+      num_channels: 2
+  1:
+    type: spi
+    enabled: true
+    name: SPI
+    config:
+      num_devices: 2
+      clock_speed_hz: 24000000
+      output_drive_strength_ma: 0
+      slew_rate: 0
+      input_debounce_us: 0
+      glitch_filter_width_ns: 0
+  2:
+    type: gpio
+    enabled: true
+    name: GPIO
+    config:
+      ngpio: 2
+      pins:
+        0:
+          name: fvp_gpio_output
+          direction: output
+          default_output: high
+          output_drive: push_pull
+          output_persist_state: true
+          bias: none
+          bias_pull_strength_ohm: 0
+          output_drive_strength_ma: 0
+          slew_rate: 0
+          input_debounce_us: 0
+          led_support: not_led
+        1:
+          name: fvp_gpio_input
+          direction: input
+          default_output: low
+          output_drive: push_pull
+          output_persist_state: true
+          bias: none
+          bias_pull_strength_ohm: 0
+          output_drive_strength_ma: 0
+          slew_rate: 0
+          input_debounce_us: 0
+          led_support: not_led

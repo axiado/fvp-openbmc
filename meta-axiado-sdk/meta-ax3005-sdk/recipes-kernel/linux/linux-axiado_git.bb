@@ -3,6 +3,7 @@ SRCBRANCH = "dev-6.18-axiado"
 SRC_URI = "git://github.com/axiado/linux-axiado;protocol=https;branch=${SRCBRANCH}"
 SRC_URI += "file://kernel.scc \
             file://kernel.cfg \
+            file://0000-nv-lstp-poc.patch \
             "
 
 LINUX_VERSION = "6.18.20"

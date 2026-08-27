@@ -5,22 +5,138 @@
 
 /dts-v1/;
 
+#include <dt-bindings/gpio/gpio.h>
+
 #include "ax3005_evk.dts"
 
 / {
 	model = "Axiado AX3005 FVP";
+
+        lstp: lstp {
+                compatible = "nvidia,lstp";
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                channel@0 {
+                        reg = <0>;
+                        nvidia,channel-type = "management";
+                        nvidia,channel-name = "AXIADO_AX3005_EVK";
+                };
+
+                channel@1 {
+                        reg = <1>;
+                        nvidia,channel-type = "spi";
+                        nvidia,channel-name = "SPI";
+			spi = <&lstp_spi_cs0>, <&lstp_spi_cs1>;
+                };
+
+                channel@2 {
+                        reg = <2>;
+                        nvidia,channel-type = "gpio";
+                        nvidia,channel-name = "GPIO";
+                        #address-cells = <1>;
+                        #size-cells = <0>;
+
+                        /* gpio4 offset 0 == global line 128 */
+                        pin@0 {
+                                reg = <0>;
+                                label = "fvp_gpio_out";
+                                gpios = <&gpio4 0 GPIO_ACTIVE_HIGH>;
+                                nvidia,allow-direction-control;
+                                nvidia,allow-set-irq;
+                                nvidia,drive = "push-pull";
+                        };
+
+                        /* gpio4 offset 1 == global line 129 */
+                        pin@1 {
+                                reg = <1>;
+                                label = "fvp_gpio_in";
+                                gpios = <&gpio4 1 GPIO_ACTIVE_HIGH>;
+                                nvidia,allow-set-irq;
+                                nvidia,bias = "pull-up";
+                        };
+                };
+
+                channel@3 {
+                        reg = <3>;
+                        nvidia,channel-type = "i2c";
+                        nvidia,channel-name = "I2C2";
+                        i2c-parent = <&i2c2>;
+                        nvidia,i2c-speed = <100000>;
+                };
+
+                channel@4 {
+                        reg = <4>;
+                        nvidia,channel-type = "uart";
+                        nvidia,channel-name = "UART6";
+                        uart = <&lstp_uart6>;
+                        current-speed = <115200>;
+                        nvidia,parity = "none";
+                        nvidia,flow-control = "none";
+                };
+
+                /*
+                 * No controller behind this one: the channel registers a
+                 * serial driver of its own and shows up locally as
+                 * /dev/ttyVUART0, so the LSTP host talks to software running
+                 * on this machine.  The settings below only seed what the
+                 * channel reports through the management ReadConfig command.
+                 */
+                channel@5 {
+                        reg = <5>;
+                        nvidia,channel-type = "virtual-uart";
+                        nvidia,channel-name = "VUART0";
+                        current-speed = <115200>;
+                        nvidia,data-bits = <8>;
+                        nvidia,stop-bits = <1>;
+                        nvidia,parity = "none";
+                        nvidia,flow-control = "none";
+                };
+        };
+};
+
+/**
+ * uart6 is the one handed to the LSTP host. Claiming
+ * it through serdev takes /dev/ttyPS6 away from userspace for as long as the
+ * LSTP channel exists.
+ */
+&uart6 {
+	lstp_uart6: serial-lstp {
+		compatible = "nvidia,lstp-uart";
+	};
 };
 
 &gpio4 {
 	compatible = "cdns,gpio-r1p02";
 
 	gpio-line-names =
-	/*128-135*/       "","","","","","","","",
+	/*128-135*/       "fvp_gpio_out","fvp_gpio_in","","","","","","",
 	/*136-143*/       "","","","","","","","",
 	/*144-151*/       "","","","","","","","",
 	/*152-159*/       "pwr_req","pgood_ok","","","","","","";
 };
 
+/**
+ * J35, short i2c-31 and i2c-32 with pull high resister.
+ * i2c-32 be ssif slave, slave clock frequency should double to master
+ */
+&i2c32 {
+	clock-frequency = <400000>;
+
+	ssif-bmc@10 {
+		compatible = "ssif-bmc";
+		reg = <0x10>;
+	};
+};
+
+&i2c31 {
+	clock-frequency = <200000>;
+};
+
 &usb2_0 {
+	compatible = "axiado,ax3000-udc";
+};
+
+&usb3_1 {
 	compatible = "axiado,ax3000-udc";
 };

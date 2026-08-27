@@ -3,6 +3,7 @@ SRCBRANCH = "release/release-u-0.2.0"
 SRC_URI = "git://bitbucket.org/ax-engg/kernel-6.18.git;protocol=https;branch=${SRCBRANCH}"
 SRC_URI += "file://kernel.scc \
             file://kernel.cfg \
+            file://0000-nv-lstp-poc.patch \
             "
 
 LINUX_VERSION = "6.18.20"
