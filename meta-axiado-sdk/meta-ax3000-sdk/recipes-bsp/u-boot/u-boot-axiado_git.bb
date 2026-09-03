@@ -10,14 +10,10 @@ SRC_URI += "file://u-boot-axiado-env"
 # 2019.04 does not have u-boot-initial-env target to build
 UBOOT_INITIAL_ENV = ""
 
-UBOOT_ENV_BINARY = "u-boot-axiado-initial-env.bin"
+UBOOT_ENV_SRC = "u-boot-axiado-env"
 
 do_compile:append() {
-    ${B}/tools/mkenvimage -s ${UBOOT_INITIAL_ENV_BINARY_SIZE} -o ${B}/${UBOOT_ENV_BINARY} ${UNPACKDIR}/u-boot-axiado-env
-}
-
-do_deploy:append() {
-    install -D -m 644 ${B}/${UBOOT_ENV_BINARY} ${DEPLOYDIR}/${UBOOT_ENV_BINARY}
+    ${B}/tools/mkenvimage -s ${UBOOT_ENV_SIZE} -o ${B}/${UBOOT_ENV_BINARY} ${UNPACKDIR}/u-boot-axiado-env
 }
 
 PV = "2019.04+git"

@@ -12,5 +12,6 @@ B = "${UNPACKDIR}/build"
 
 DEPENDS += "dtc-native bison-native"
 
-UBOOT_INITIAL_ENV_BINARY = "1"
-UBOOT_INITIAL_ENV_BINARY_SIZE = "0x10000"
+UBOOT_ENV_SIZE ?= "0x10000"
+UBOOT_ENV = "u-boot-env"
+UBOOT_ENV_SUFFIX = "bin"
