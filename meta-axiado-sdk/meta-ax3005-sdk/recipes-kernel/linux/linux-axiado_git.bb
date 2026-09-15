@@ -4,6 +4,7 @@ SRC_URI = "git://github.com/axiado/linux-axiado;protocol=https;branch=${SRCBRANC
 SRC_URI += "file://0001-Enable-ARM-TrustZone.patch \
             file://kernel.cfg \
             file://0000-nv-lstp-poc.patch \
+            file://0001-debug-ssif-master-slave-in-one-BMC.patch \
             "
 
 LINUX_VERSION = "6.18.20"

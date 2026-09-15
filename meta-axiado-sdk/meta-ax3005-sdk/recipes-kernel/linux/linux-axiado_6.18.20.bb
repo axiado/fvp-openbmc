@@ -5,6 +5,7 @@ SRC_URI = "git://bitbucket.org/ax-engg/kernel-6.18.git;protocol=https;branch=${S
 SRC_URI += "file://0001-Enable-ARM-TrustZone.patch \
             file://kernel.cfg \
             file://0000-nv-lstp-poc.patch \
+            file://0001-debug-ssif-master-slave-in-one-BMC.patch \
             "
 
 LINUX_VERSION = "6.18.20"

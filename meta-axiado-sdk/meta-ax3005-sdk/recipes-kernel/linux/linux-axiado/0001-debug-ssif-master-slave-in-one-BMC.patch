@@ -1,0 +1,661 @@
+From 393c24f2b20b74feb598b916e245ab077fe38a73 Mon Sep 17 00:00:00 2001
+From: Louis Liao <lliao@axiado.com>
+Date: Mon, 14 Sep 2026 22:55:00 -0700
+Subject: [PATCH] [TODO] debug ssif master and slave in one BMC system
+
+Upstream-Status: Pending
+
+Signed-off-by: Louis Liao <lliao@axiado.com>
+---
+ drivers/char/ipmi/ipmi_ssif.c    |  30 +++++++
+ drivers/char/ipmi/ssif_bmc.c     | 144 ++++++++++++++++++++++++++++++-
+ drivers/i2c/busses/i2c-cadence.c |   4 +
+ drivers/i2c/i2c-core-base.c      |  13 ++-
+ 4 files changed, 188 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/char/ipmi/ipmi_ssif.c b/drivers/char/ipmi/ipmi_ssif.c
+index 1b63f7d2fcda..5f82e6c72c7e 100644
+--- a/drivers/char/ipmi/ipmi_ssif.c
++++ b/drivers/char/ipmi/ipmi_ssif.c
+@@ -1321,7 +1321,9 @@ static int do_cmd(struct i2c_client *client, int len, unsigned char *msg,
+ 
+ 	retry_cnt = SSIF_SEND_RETRIES;
+  retry1:
++	pr_info("%s():%d\t[ipmi ssif] i2c_client->addr: 0x%02x, -----------------> retry_cnt: %d\n", __func__, __LINE__, client->addr, retry_cnt);
+ 	ret = i2c_smbus_write_block_data(client, SSIF_IPMI_REQUEST, len, msg);
++	pr_info("%s():%d\t[ipmi ssif] i2c_client->addr: 0x%02x, -----------------> ret: %d\n", __func__, __LINE__, client->addr, ret);
+ 	if (ret) {
+ 		retry_cnt--;
+ 		if (retry_cnt > 0) {
+@@ -1331,7 +1333,9 @@ static int do_cmd(struct i2c_client *client, int len, unsigned char *msg,
+ 		return -ENODEV;
+ 	}
+ 
++	pr_info("%s():%d\t[ipmi ssif] i2c_client->addr: 0x%02x, -----------------> read_response\n", __func__, __LINE__, client->addr);
+ 	ret = read_response(client, resp);
++	pr_info("%s():%d\t[ipmi ssif] i2c_client->addr: 0x%02x, -----------------> read_response, ret: %d\n", __func__, __LINE__, client->addr, ret);
+ 	if (ret > 0) {
+ 		/* Validate that the response is correct. */
+ 		if (ret < 3 ||
+@@ -1356,6 +1360,7 @@ static int ssif_detect(struct i2c_client *client, struct i2c_board_info *info)
+ 	int           rv;
+ 	int           len;
+ 
++	pr_info("%s():%d\t[ipmi ssif] ##################### driver->detect, client->addr: 0x%02x\n", __func__, __LINE__, client->addr);
+ 	resp = kmalloc(IPMI_MAX_MSG_LENGTH, GFP_KERNEL);
+ 	if (!resp)
+ 		return -ENOMEM;
+@@ -1364,6 +1369,7 @@ static int ssif_detect(struct i2c_client *client, struct i2c_board_info *info)
+ 	msg[0] = IPMI_NETFN_APP_REQUEST << 2;
+ 	msg[1] = IPMI_GET_DEVICE_ID_CMD;
+ 	rv = do_cmd(client, 2, msg, &len, resp);
++	pr_info("%s():%d\t[ipmi ssif] driver->detect, len: %d, rv: %d\n", __func__, __LINE__, len, rv);
+ 	if (rv)
+ 		rv = -ENODEV;
+ 	else {
+@@ -1662,6 +1668,8 @@ static int ssif_probe(struct i2c_client *client)
+ 	u8		  slave_addr = 0;
+ 	struct ssif_addr_info *addr_info = NULL;
+ 
++	pr_info("%s():%d\t[ipmi ssif] probe =========================\n", __func__, __LINE__);
++
+ 	mutex_lock(&ssif_infos_mutex);
+ 	resp = kmalloc(IPMI_MAX_MSG_LENGTH, GFP_KERNEL);
+ 	if (!resp) {
+@@ -1669,6 +1677,7 @@ static int ssif_probe(struct i2c_client *client)
+ 		return -ENOMEM;
+ 	}
+ 
++	pr_info("%s():%d\t[ipmi ssif] probe\n", __func__, __LINE__);
+ 	ssif_info = kzalloc(sizeof(*ssif_info), GFP_KERNEL);
+ 	if (!ssif_info) {
+ 		kfree(resp);
+@@ -1691,6 +1700,9 @@ static int ssif_probe(struct i2c_client *client)
+ 		}
+ 	}
+ 
++	pr_info("%s():%d\t[ipmi ssif] probe\n", __func__, __LINE__);
++
++
+ 	ssif_info->client = client;
+ 	i2c_set_clientdata(client, ssif_info);
+ 
+@@ -1707,6 +1719,7 @@ static int ssif_probe(struct i2c_client *client)
+ 		goto out;
+ 	}
+ 
++	pr_info("%s():%d\t[ipmi ssif] probe\n", __func__, __LINE__);
+ 	slave_addr = find_slave_address(client, slave_addr);
+ 
+ 	dev_info(&client->dev,
+@@ -1718,17 +1731,21 @@ static int ssif_probe(struct i2c_client *client)
+ 	 * Send a get device id command and validate its response to
+ 	 * make sure a valid BMC is there.
+ 	 */
++	pr_info("%s():%d\t[ipmi ssif] probe, #################### SSIF_DETECT\n", __func__, __LINE__);
+ 	rv = ssif_detect(client, NULL);
++	pr_info("%s():%d\t[ipmi ssif] probe, #################### SSIF_DETECT, rv: %d\n", __func__, __LINE__, rv);
+ 	if (rv) {
+ 		dev_err(&client->dev, "Not present\n");
+ 		goto out;
+ 	}
+ 
++	pr_info("%s():%d\t[ipmi ssif] probe --> IPMI_GET_SYSTEM_INTERFACE_CAPABILITIES_CMD\n", __func__, __LINE__);
+ 	/* Now check for system interface capabilities */
+ 	msg[0] = IPMI_NETFN_APP_REQUEST << 2;
+ 	msg[1] = IPMI_GET_SYSTEM_INTERFACE_CAPABILITIES_CMD;
+ 	msg[2] = 0; /* SSIF */
+ 	rv = do_cmd(client, 3, msg, &len, resp);
++	pr_info("%s():%d\t[ipmi ssif] probe --> IPMI_GET_SYSTEM_INTERFACE_CAPABILITIES_CMD, rv: %d\n", __func__, __LINE__, rv);
+ 	if (!rv && (len >= 3) && (resp[2] == 0)) {
+ 		if (len < 7) {
+ 			if (ssif_dbg_probe)
+@@ -1782,6 +1799,7 @@ static int ssif_probe(struct i2c_client *client)
+ 
+ 	test_multipart_messages(client, ssif_info, resp);
+ 
++	pr_info("%s():%d\t[ipmi ssif] probe\n", __func__, __LINE__);
+ 	/* Make sure the NMI timeout is cleared. */
+ 	msg[0] = IPMI_NETFN_APP_REQUEST << 2;
+ 	msg[1] = IPMI_CLEAR_MSG_FLAGS_CMD;
+@@ -1906,6 +1924,7 @@ static int ssif_probe(struct i2c_client *client)
+ 		goto out;
+ 	}
+ 
++	pr_info("%s():%d\t[ipmi ssif] probe, CALL ipmi_register_smi\n", __func__, __LINE__);
+ 	rv = ipmi_register_smi(&ssif_info->handlers,
+ 			       ssif_info,
+ 			       &ssif_info->client->dev,
+@@ -1928,6 +1947,7 @@ static int ssif_probe(struct i2c_client *client)
+ 	}
+ 	kfree(resp);
+ 	mutex_unlock(&ssif_infos_mutex);
++	pr_info("%s():%d\t[ipmi ssif] probe, rv: %d\n", __func__, __LINE__, rv);
+ 	return rv;
+ 
+ out_remove_attr:
+@@ -2126,16 +2146,25 @@ static int __init init_ipmi_ssif(void)
+ 
+ 	pr_info("IPMI SSIF Interface driver\n");
+ 
++#if 1
++	pr_info("%s():%d\t[ipmi ssif] [INIT] num_addrs: %d\n", __func__, __LINE__, num_addrs);
++	for (int iii = 0; iii < num_addrs; ++iii) {
++		pr_info("%s():%d\t[ipmi ssif] [INIT] addr[%d]: 0x%x\n", __func__, __LINE__, iii, addr[iii]);
++	}
++#endif
++
+ 	/* build list for i2c from addr list */
+ 	for (i = 0; i < num_addrs; i++) {
+ 		rv = new_ssif_client(addr[i], adapter_name[i],
+ 				     dbg[i], slave_addrs[i],
+ 				     SI_HARDCODED, NULL);
++		pr_info("%s():%d\t[ipmi ssif] [INIT] rv: %d\n", __func__, __LINE__, rv);
+ 		if (rv)
+ 			pr_err("Couldn't add hardcoded device at addr 0x%x\n",
+ 			       addr[i]);
+ 	}
+ 
++	pr_info("%s():%d\t[ipmi ssif] [INIT] ssif_tryacpi: %d, ssif_trydmi: %d\n", __func__, __LINE__, ssif_tryacpi, ssif_trydmi);
+ 	if (ssif_tryacpi)
+ 		ssif_i2c_driver.driver.acpi_match_table	=
+ 			ACPI_PTR(ssif_acpi_match);
+@@ -2151,6 +2180,7 @@ static int __init init_ipmi_ssif(void)
+ 	ssif_i2c_driver.address_list = ssif_address_list();
+ 
+ 	rv = i2c_add_driver(&ssif_i2c_driver);
++	pr_info("%s():%d\t[ipmi ssif] [INIT] rv: %d\n", __func__, __LINE__, rv);
+ 	if (!rv)
+ 		initialized = true;
+ 
+diff --git a/drivers/char/ipmi/ssif_bmc.c b/drivers/char/ipmi/ssif_bmc.c
+index 5e0c3c1f025b..94466a57aff5 100644
+--- a/drivers/char/ipmi/ssif_bmc.c
++++ b/drivers/char/ipmi/ssif_bmc.c
+@@ -24,6 +24,9 @@
+ 
+ #include <linux/device.h>
+ 
++#define LOUIS_DEBUG
++
++
+ #define DEVICE_NAME                             "ipmi-ssif-host"
+ #ifdef CONFIG_SEPARATE_SSIF_POSTCODES
+ #define DEVICE_NAME_POST                        "ipmi-ssif-postcodes"
+@@ -184,6 +187,9 @@ static ssize_t ssif_bmc_read(struct file *file, char __user *buf, size_t count_i
+ 	unsigned int count_out;
+ 	ssize_t ret = 0;
+ 
++#ifdef LOUIS_DEBUG
++	pr_info("%s():%d\t[SSIF S] read\n", __func__, __LINE__);
++#endif
+ 	if (kfifo_is_empty(&ssif_bmc->fifo)) {
+ 		if (file->f_flags & O_NONBLOCK)
+ 			return -EAGAIN;
+@@ -192,6 +198,9 @@ static ssize_t ssif_bmc_read(struct file *file, char __user *buf, size_t count_i
+ 			return ret; 
+ 	}
+ 	spin_lock_irqsave(&ssif_bmc->lock_rd, flags);
++#ifdef LOUIS_DEBUG
++	pr_info("%s():%d\t[SSIF S] read to user\n", __func__, __LINE__);
++#endif
+ 	ret = kfifo_to_user(&ssif_bmc->fifo, buf, count_in, &count_out);
+ 	spin_unlock_irqrestore(&ssif_bmc->lock_rd, flags);
+ 	return (ret < 0) ? ret : count_out;
+@@ -300,6 +309,9 @@ static ssize_t ssif_bmc_write(struct file *file, const char __user *buf, size_t
+ 	ktime_t now;
+ 	s64 timer;
+ 
++#ifdef LOUIS_DEBUG
++	pr_info("%s():%d\t[SSIF S] write\n", __func__, __LINE__);
++#endif
+ 	if (count > sizeof(struct ipmi_ssif_msg))
+ 		return -EINVAL;
+ 
+@@ -324,12 +336,18 @@ static ssize_t ssif_bmc_write(struct file *file, const char __user *buf, size_t
+ 	spin_lock_irqsave(&ssif_bmc->lock_wr, flags);
+ 	memcpy(&ssif_bmc->response, &msg, count);
+ 	ssif_bmc->is_singlepart_read = (msg.header.len <= MAX_PAYLOAD_PER_TRANSACTION);
++#ifdef LOUIS_DEBUG
++	pr_info("%s():%d\t[SSIF S] write, ssif_bmc->is_singlepart_read: %d\n", __func__, __LINE__, ssif_bmc->is_singlepart_read);
++#endif
+ 	spin_unlock_irqrestore(&ssif_bmc->lock_wr, flags);
+ 
+ 	timer_delete_sync(&ssif_bmc->response_timer);
+ 	ssif_bmc->busy = false;
+ 	cdns_i2c_slave_set_busy(ssif_bmc->client->adapter, ssif_bmc->busy);
+ 	if (!IS_ERR(ssif_bmc->alert)) {
++#ifdef LOUIS_DEBUG
++		pr_info("%s():%d\t[SSIF S] write, alert\n", __func__, __LINE__);
++#endif
+ 		//if gpio is already asserted toggle it
+ 		if (gpiod_get_value(ssif_bmc->alert))
+ 		{
+@@ -340,6 +358,9 @@ static ssize_t ssif_bmc_write(struct file *file, const char __user *buf, size_t
+ 		gpiod_set_value(ssif_bmc->alert, 1);
+ 	}
+ 
++#ifdef LOUIS_DEBUG
++	pr_info("%s():%d\t[SSIF S] write, ret: %d\n", __func__, __LINE__, ret);
++#endif
+ 	return (ret < 0) ? ret : count;
+ }
+ 
+@@ -348,11 +369,17 @@ static int ssif_bmc_open(struct inode *inode, struct file *file)
+ 	struct ssif_bmc_ctx *ssif_bmc = to_ssif_bmc(file);
+ 	int ret = 0;
+ 
++#ifdef LOUIS_DEBUG
++	pr_info("%s():%d\t[SSIF S] open\n", __func__, __LINE__);
++#endif
+ 	if (!ssif_bmc->running)
+ 		ssif_bmc->running = 1;
+ 	else
+ 		ret = -EBUSY;
+ 
++#ifdef LOUIS_DEBUG
++	pr_info("%s():%d\t[SSIF S] open, ret: %d\n", __func__, __LINE__, ret);
++#endif
+ 	return ret;
+ }
+ 
+@@ -388,11 +415,19 @@ static const struct file_operations ssif_bmc_fops = {
+ 	.poll		= ssif_bmc_poll,
+ };
+ 
++
++
++// TODO dump data
+ /* Called with ssif_bmc->lock held. */
+ static void handle_request(struct ssif_bmc_ctx *ssif_bmc)
+ {
+ 	unsigned long flags = 0;
+ 	int rc = 0;
++
++#ifdef LOUIS_DEBUG
++	pr_info("%s():%d\t[SSIF S] [handle_request] ssif_bmc->request.header.len: %d\n", __func__, __LINE__, ssif_bmc->request.header.len);
++#endif
++
+ #ifdef CONFIG_SEPARATE_SSIF_POSTCODES
+ 	int netfn = ssif_bmc->request.payload[0] >> 2;
+ 	int cmd = ssif_bmc->request.payload[1];
+@@ -404,28 +439,50 @@ static void handle_request(struct ssif_bmc_ctx *ssif_bmc)
+ #endif //CONFIG_SEPARATE_SSIF_POSTCODES
+ 	if (kfifo_initialized(&ssif_bmc->fifo)) {
+ 		ssize_t to_send = sizeof(struct ipmi_ssif_msg_header) + ssif_bmc->request.header.len;
+-		if (to_send > BUFFER_SIZE) {
++		if (to_send > BUFFER_SIZE /* 1024 */) {
+ 			return;
+ 		}
+ 
+ 		if ((BUFFER_SIZE - kfifo_len(&ssif_bmc->fifo)) < to_send)
+ 			kfifo_reset(&ssif_bmc->fifo);
+ 
++#ifdef LOUIS_DEBUG
++		pr_info("%s():%d\t[SSIF S] [handle_request] debug\n", __func__, __LINE__);
++#endif
++
++
++
++
++
++
+ 		spin_lock_irqsave(&ssif_bmc->lock_rd, flags);
++
+ 		rc = kfifo_in(&ssif_bmc->fifo, &ssif_bmc->request.header,  sizeof(struct ipmi_ssif_msg_header));
++#ifdef LOUIS_DEBUG
++		pr_info("%s():%d\t[SSIF S] [handle_request] debug, kfifo_in rc: %d\n", __func__, __LINE__, rc);
++#endif
+ 		if (rc != sizeof(struct ipmi_ssif_msg_header)) {
+ 			kfifo_reset(&ssif_bmc->fifo);
+ 			spin_unlock_irqrestore(&ssif_bmc->lock_rd, flags);
+ 			return;
+ 		}
+-		to_send = min_t(ssize_t, ssif_bmc->request.header.len, IPMI_SSIF_PAYLOAD_MAX);
++
++		to_send = min_t(ssize_t, ssif_bmc->request.header.len, IPMI_SSIF_PAYLOAD_MAX /* 254 */);
+ 		rc = kfifo_in(&ssif_bmc->fifo, ssif_bmc->request.payload, to_send);
++#ifdef LOUIS_DEBUG
++		pr_info("%s():%d\t[SSIF S] [handle_request] debug, kfifo_in rc: %d\n", __func__, __LINE__, rc);
++#endif
+ 		spin_unlock_irqrestore(&ssif_bmc->lock_rd, flags);
++
+ 		if (rc != to_send) {
+ 			kfifo_reset(&ssif_bmc->fifo);
+ 			return;
+ 		}
+ 
++
++
++
++
+ 		ssif_bmc->busy = true;
+ 		cdns_i2c_slave_set_busy(ssif_bmc->client->adapter, ssif_bmc->busy);
+ 		mod_timer(&ssif_bmc->response_timer, jiffies + msecs_to_jiffies(ssif_bmc->response_timeout));
+@@ -436,6 +493,12 @@ static void handle_request(struct ssif_bmc_ctx *ssif_bmc)
+ 	}
+ }
+ 
++
++
++
++
++
++
+ static void calculate_response_part_pec(struct ssif_part_buffer *part)
+ {
+ 	u8 addr = part->address;
+@@ -595,7 +658,13 @@ static void handle_write_received(struct ssif_bmc_ctx *ssif_bmc, u8 *val)
+ 	if (ssif_bmc->msg_idx == 1) {
+ 		ssif_bmc->part_buf.length = *val;
+ 		ssif_bmc->part_buf.index = 0;
++#ifdef LOUIS_DEBUG
++		pr_info("%s():%d\t[SSIF S] ssif_bmc->part_buf.length: %u\n", __func__, __LINE__, *val);
++#endif
+ 	} else {
++#ifdef LOUIS_DEBUG
++		pr_info("%s():%d\t[SSIF S] ssif_bmc->part_buf.payload[%d]: %u\n", __func__, __LINE__, ssif_bmc->part_buf.index, *val);
++#endif
+ 		ssif_bmc->part_buf.payload[ssif_bmc->part_buf.index++] = *val;
+ 	}
+ 
+@@ -613,18 +682,38 @@ static bool validate_request_part(struct ssif_bmc_ctx *ssif_bmc)
+ 		/* PEC is not included */
+ 		ssif_bmc->pec_support = false;
+ 		ret = true;
++#ifdef LOUIS_DEBUG
++		pr_info("%s():%d\t[SSIF S] [validate_request_part] NO PEC\n", __func__, __LINE__);
++#endif
+ 		goto exit;
+ 	}
+ 
+ 	if (part->index != part->length + 1) {
+ 		ret = false;
++#ifdef LOUIS_DEBUG
++		pr_info("%s():%d\t[SSIF S] [validate_request_part] ERR\n", __func__, __LINE__);
++#endif
+ 		goto exit;
+ 	}
+ 
++#ifdef LOUIS_DEBUG
++	pr_info("%s():%d\t[SSIF S] [validate_request_part] part->address: 0x%x\n", __func__, __LINE__, part->address);
++	pr_info("%s():%d\t[SSIF S] [validate_request_part] part->smbus_cmd: 0x%x\n", __func__, __LINE__, part->smbus_cmd);
++	pr_info("%s():%d\t[SSIF S] [validate_request_part] part->length: %u\n", __func__, __LINE__, part->length);
++	for (uint ii = 0; ii < part->length; ++ii) {
++		pr_info("%s():%d\t[SSIF S] [validate_request_part] part->payload[%u]: 0x%x\n", __func__, __LINE__, ii, part->payload[ii]);
++	}
++#endif
++
+ 	/* PEC is included */
+ 	ssif_bmc->pec_support = true;
+ 	part->pec = part->payload[part->length];
+ 	addr = GET_8BIT_ADDR(ssif_bmc->client->addr);
++#ifdef LOUIS_DEBUG
++	pr_info("%s():%d\t[SSIF S] [validate_request_part] part->pec: 0x%02x\n", __func__, __LINE__, part->pec);
++	pr_info("%s():%d\t[SSIF S] [validate_request_part] ssif_bmc->client->addr: 0x%02x\n", __func__, __LINE__, ssif_bmc->client->addr);
++	pr_info("%s():%d\t[SSIF S] [validate_request_part] addr: 0x%02x\n", __func__, __LINE__, addr);
++#endif
+ 	cpec = i2c_smbus_pec(0, &addr, 1);
+ 	cpec = i2c_smbus_pec(cpec, &part->smbus_cmd, 1);
+ 	cpec = i2c_smbus_pec(cpec, &part->length, 1);
+@@ -652,7 +741,12 @@ static void process_request_part(struct ssif_bmc_ctx *ssif_bmc)
+ 	struct ssif_part_buffer *part = &ssif_bmc->part_buf;
+ 	unsigned int len;
+ 
++#ifdef LOUIS_DEBUG
++	pr_info("%s():%d\t[SSIF S] [process_request_part] part->smbus_cmd: 0x%02x, part->length: %d, ssif_bmc->msg_count: %d\n", __func__, __LINE__, part->smbus_cmd, part->length, ssif_bmc->msg_count);
++#endif
++
+ 	switch (part->smbus_cmd) {
++	/* 0x2 */
+ 	case SSIF_IPMI_SINGLEPART_WRITE:
+ 		/* save the whole part to request*/
+ 		ssif_bmc->request.header.len = part->length;
+@@ -660,12 +754,15 @@ static void process_request_part(struct ssif_bmc_ctx *ssif_bmc)
+ 		memcpy(ssif_bmc->request.payload, part->payload, part->length);
+ 
+ 		break;
++	/* 0x6 */
+ 	case SSIF_IPMI_MULTIPART_WRITE_START:
+ 		ssif_bmc->request.header.len = 0;
+ 		ssif_bmc->request.header.msg_num = ssif_bmc->msg_count;
+ 
+ 		fallthrough;
++	/* 0x7 */
+ 	case SSIF_IPMI_MULTIPART_WRITE_MIDDLE:
++	/* 0x8 */
+ 	case SSIF_IPMI_MULTIPART_WRITE_END:
+ 		len = ssif_bmc->request.header.len + part->length;
+ 		/* Do the bound check here, not allow the request len exceed 254 bytes */
+@@ -692,6 +789,9 @@ static void process_smbus_cmd(struct ssif_bmc_ctx *ssif_bmc, u8 *val)
+ {
+ 	/* SMBUS command can vary (single or multi-part) */
+ 	ssif_bmc->part_buf.smbus_cmd = *val;
++#ifdef LOUIS_DEBUG
++	pr_info("%s():%d\t[SSIF S] ssif_bmc->part_buf.smbus_cmd: %u\n", __func__, __LINE__, *val);
++#endif
+ 	ssif_bmc->msg_idx = 1;
+ 	memset(&ssif_bmc->part_buf.payload[0], 0, MAX_PAYLOAD_PER_TRANSACTION);
+ 
+@@ -784,6 +884,10 @@ static void on_read_processed_event(struct ssif_bmc_ctx *ssif_bmc, u8 *val)
+ 
+ static void on_write_requested_event(struct ssif_bmc_ctx *ssif_bmc, u8 *val)
+ {
++#ifdef LOUIS_DEBUG
++	pr_info("%s():%d\t[SSIF S] [I2C_SLAVE_WRITE_REQUESTED] ----------------------------\n", __func__, __LINE__);
++#endif
++
+ 	if (ssif_bmc->state == SSIF_READY || ssif_bmc->state == SSIF_SMBUS_CMD) {
+ 		ssif_bmc->state = SSIF_START;
+ 		ssif_bmc->wr_tolerance = true;
+@@ -811,10 +915,17 @@ static void on_write_requested_event(struct ssif_bmc_ctx *ssif_bmc, u8 *val)
+ 
+ 	ssif_bmc->msg_idx = 0;
+ 	ssif_bmc->part_buf.address = *val;
++#ifdef LOUIS_DEBUG
++	pr_info("%s():%d\t[SSIF S] [I2C_SLAVE_WRITE_REQUESTED] ssif_bmc->part_buf.address: 0x%x\n", __func__, __LINE__, ssif_bmc->part_buf.address);
++#endif
+ }
+ 
+ static void on_write_received_event(struct ssif_bmc_ctx *ssif_bmc, u8 *val)
+ {
++#ifdef LOUIS_DEBUG
++	pr_info("%s():%d\t[SSIF S] [I2C_SLAVE_WRITE_RECEIVED] -------------------\n", __func__, __LINE__);
++#endif
++
+ 	if (ssif_bmc->state == SSIF_READY ||
+ 	    ssif_bmc->state == SSIF_RES_SENDING) {
+ 		dev_warn(&ssif_bmc->client->dev,
+@@ -853,15 +964,25 @@ static void on_write_received_event(struct ssif_bmc_ctx *ssif_bmc, u8 *val)
+ 	/* This is response sending state */
+ 	if (ssif_bmc->state == SSIF_REQ_RECVING) {
+ 		ssif_bmc->wr_tolerance = false;
++#ifdef LOUIS_DEBUG
++		pr_info("%s():%d\t[SSIF S] [I2C_SLAVE_WRITE_RECEIVED] handle_write_received, val: 0x%x\n", __func__, __LINE__, *val);
++#endif
+ 		handle_write_received(ssif_bmc, val);
+ 	} else if (ssif_bmc->state == SSIF_SMBUS_CMD) {
+ 		ssif_bmc->wr_tolerance = true;
++#ifdef LOUIS_DEBUG
++		pr_info("%s():%d\t[SSIF S] [I2C_SLAVE_WRITE_RECEIVED] process_smbus_cmd, val: 0x%x\n", __func__, __LINE__, *val);
++#endif
+ 		process_smbus_cmd(ssif_bmc, val);
+ 	}
+ }
+ 
+ static void on_stop_event(struct ssif_bmc_ctx *ssif_bmc, u8 *val)
+ {
++#ifdef LOUIS_DEBUG
++	pr_info("%s():%d\t[SSIF S] [I2C_SLAVE_STOP] ------------------\n", __func__, __LINE__);
++#endif
++
+ 	if (ssif_bmc->state == SSIF_READY ||
+ 	    ssif_bmc->state == SSIF_START ||
+ 	    ssif_bmc->state == SSIF_ABORTING) {
+@@ -871,11 +992,18 @@ static void on_stop_event(struct ssif_bmc_ctx *ssif_bmc, u8 *val)
+ 		ssif_bmc->state = SSIF_READY;
+ 
+ 	} else if (ssif_bmc->state == SSIF_REQ_RECVING) {
++#if 0
+ 		if (validate_request_part(ssif_bmc)) {
++#else
++		//FIXME
++		if (1) {
++#endif
+ 			process_request_part(ssif_bmc);
++
+ 			if (ssif_bmc->part_buf.smbus_cmd == SSIF_IPMI_SINGLEPART_WRITE ||
+ 			    ssif_bmc->part_buf.smbus_cmd == SSIF_IPMI_MULTIPART_WRITE_END)
+ 				handle_request(ssif_bmc);
++
+ 			ssif_bmc->state = SSIF_READY;
+ 		} else {
+ 			/*
+@@ -904,27 +1032,39 @@ static int ssif_bmc_cb(struct i2c_client *client, enum i2c_slave_event event, u8
+ 	struct ssif_bmc_ctx *ssif_bmc = i2c_get_clientdata(client);
+ 	int ret = 0;
+ 
++#ifdef LOUIS_DEBUG
++	pr_info("%s():%d\t[SSIF S] ======> ssif_bmc->state: 0x%x, ssif_bmc->msg_idx: %d, ssif_bmc->part_buf.index: %d, ssif_bmc->is_singlepart_read: %d\n", __func__, __LINE__, ssif_bmc->state, ssif_bmc->msg_idx, ssif_bmc->part_buf.index, ssif_bmc->is_singlepart_read);
++#endif
++
+ 	if (ssif_bmc->busy) {
+ 		return -EBUSY;
+ 	}
+ 
++#ifdef LOUIS_DEBUG
++	pr_info("%s():%d\t[SSIF S] ======> event: 0x%x\n\n", __func__, __LINE__, event);
++#endif
+ 	switch (event) {
++	/* 0x0 Master wants to do read op from slave */
+ 	case I2C_SLAVE_READ_REQUESTED:
+ 		on_read_requested_event(ssif_bmc, val);
+ 		break;
+ 
++	/* 0x1 Master wants to do write op to slave */
+ 	case I2C_SLAVE_WRITE_REQUESTED:
+ 		on_write_requested_event(ssif_bmc, val);
+ 		break;
+ 
++	/* 0x2 */
+ 	case I2C_SLAVE_READ_PROCESSED:
+ 		on_read_processed_event(ssif_bmc, val);
+ 		break;
+ 
++	/* 0x3 Slave receives 1 byte from master */
+ 	case I2C_SLAVE_WRITE_RECEIVED:
+ 		on_write_received_event(ssif_bmc, val);
+ 		break;
+ 
++	/* 0x4 A i2c transaction finished */
+ 	case I2C_SLAVE_STOP:
+ 		on_stop_event(ssif_bmc, val);
+ 		break;
+diff --git a/drivers/i2c/busses/i2c-cadence.c b/drivers/i2c/busses/i2c-cadence.c
+index c926641f2463..7ddcbf74281e 100644
+--- a/drivers/i2c/busses/i2c-cadence.c
++++ b/drivers/i2c/busses/i2c-cadence.c
+@@ -387,9 +387,12 @@ static void cdns_i2c_slave_rcv_data(struct cdns_i2c *id)
+ 	u8 bytes;
+ 	unsigned char data;
+ 
++	pr_info("%s():%d\t[I2C CTRL] id->slave->addr: 0x%x, data: 0x%x\n", __func__, __LINE__, id->slave->addr, data);
++
+ 	/* Prepare backend for data reception */
+ 	if (id->slave_state == CDNS_I2C_SLAVE_STATE_IDLE) {
+ 		id->slave_state = CDNS_I2C_SLAVE_STATE_RECV;
++		pr_info("%s():%d\t[I2C CTRL] id->slave->addr: 0x%x, I2C_SLAVE_WRITE_REQUESTED, data: 0x%x\n", __func__, __LINE__, id->slave->addr, data);
+ 		i2c_slave_event(id->slave, I2C_SLAVE_WRITE_REQUESTED, &data);
+ 	}
+ 
+@@ -398,6 +401,7 @@ static void cdns_i2c_slave_rcv_data(struct cdns_i2c *id)
+ 	/* Read data and send to backend */
+ 	while (bytes--) {
+ 		data = cdns_i2c_readreg(CDNS_I2C_DATA_OFFSET);
++		pr_info("%s():%d\t[I2C CTRL] id->slave->addr: 0x%x, I2C_SLAVE_WRITE_RECEIVED, data: 0x%x\n", __func__, __LINE__, id->slave->addr, data);
+ 		i2c_slave_event(id->slave, I2C_SLAVE_WRITE_RECEIVED, &data);
+ 	}
+ }
+diff --git a/drivers/i2c/i2c-core-base.c b/drivers/i2c/i2c-core-base.c
+index 3039af033ad9..e6cf13cc3c6f 100644
+--- a/drivers/i2c/i2c-core-base.c
++++ b/drivers/i2c/i2c-core-base.c
+@@ -1425,6 +1425,7 @@ static int i2c_do_add_adapter(struct i2c_driver *driver,
+ 			      struct i2c_adapter *adap)
+ {
+ 	/* Detect supported devices on that bus, and instantiate them */
++	pr_err("%s():%d\tdebug\n", __func__, __LINE__);
+ 	i2c_detect(adap, driver);
+ 
+ 	return 0;
+@@ -2028,8 +2029,10 @@ EXPORT_SYMBOL_GPL(i2c_for_each_dev);
+ 
+ static int __process_new_driver(struct device *dev, void *data)
+ {
++	pr_err("%s():%d\tdebug\n", __func__, __LINE__);
+ 	if (dev->type != &i2c_adapter_type)
+ 		return 0;
++	pr_err("%s():%d\tdebug\n", __func__, __LINE__);
+ 	return i2c_do_add_adapter(data, to_i2c_adapter(dev));
+ }
+ 
+@@ -2042,10 +2045,12 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
+ {
+ 	int res;
+ 
++	pr_err("%s():%d\tdebug\n", __func__, __LINE__);
+ 	/* Can't register until after driver model init */
+ 	if (WARN_ON(!is_registered))
+ 		return -EAGAIN;
+ 
++	pr_err("%s():%d\tdebug\n", __func__, __LINE__);
+ 	/* add the driver to the list of i2c drivers in the driver core */
+ 	driver->driver.owner = owner;
+ 	driver->driver.bus = &i2c_bus_type;
+@@ -2054,10 +2059,13 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
+ 	/* When registration returns, the driver core
+ 	 * will have called probe() for all matching-but-unbound devices.
+ 	 */
++	pr_err("%s():%d\tdebug\n", __func__, __LINE__);
+ 	res = driver_register(&driver->driver);
+ 	if (res)
+ 		return res;
+ 
++	pr_err("%s():%d\tdebug\n", __func__, __LINE__);
++
+ 	pr_debug("driver [%s] registered\n", driver->driver.name);
+ 
+ 	/* Walk the adapters that are already present */
+@@ -2508,10 +2516,12 @@ static int i2c_detect_address(struct i2c_client *temp_client,
+ 	/* Finally call the custom detection function */
+ 	memset(&info, 0, sizeof(struct i2c_board_info));
+ 	info.addr = addr;
++	pr_err("%s():%d\tCALL driver->detect\n", __func__, __LINE__);
+ 	err = driver->detect(temp_client, &info);
+ 	if (err) {
+ 		/* -ENODEV is returned if the detection fails. We catch it
+ 		   here as this isn't an error. */
++		pr_err("%s():%d\tdriver->detect, -ENODEV\n", __func__, __LINE__);
+ 		return err == -ENODEV ? 0 : err;
+ 	}
+ 
+@@ -2549,6 +2559,7 @@ static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver)
+ 	struct i2c_client *temp_client;
+ 	int i, err = 0;
+ 
++	pr_err("%s():%d\tdebug\n", __func__, __LINE__);
+ 	address_list = driver->address_list;
+ 	if (!driver->detect || !address_list)
+ 		return 0;
+@@ -2574,7 +2585,7 @@ static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver)
+ 	temp_client->adapter = adapter;
+ 
+ 	for (i = 0; address_list[i] != I2C_CLIENT_END; i += 1) {
+-		dev_dbg(&adapter->dev,
++		dev_info(&adapter->dev,
+ 			"found normal entry for adapter %d, addr 0x%02x\n",
+ 			i2c_adapter_id(adapter), address_list[i]);
+ 		temp_client->addr = address_list[i];
+-- 
+2.34.1
+
