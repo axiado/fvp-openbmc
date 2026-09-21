@@ -1,0 +1,183 @@
+From ced249e9edca426758a0fe4f4060c5088bed216e Mon Sep 17 00:00:00 2001
+From: Louis Liao <lliao@axiado.com>
+Date: Thu, 17 Sep 2026 00:32:04 -0700
+Subject: [PATCH] Fix build error due to NV lstp host module uses the newer
+ kernel version
+
+Upstream-Status: Pending
+
+Signed-off-by: Louis Liao <lliao@axiado.com>
+---
+ drivers/gpio/gpiolib.c      | 17 ++++++++
+ drivers/i3c/i3cdev.c        |  0
+ drivers/spi/spi.c           |  3 ++
+ include/linux/gpio/driver.h |  2 +
+ include/linux/overflow.h    | 82 +++++++++++++++++++++++++++++++++++++
+ include/linux/spi/spi.h     |  1 +
+ 6 files changed, 105 insertions(+)
+ mode change 100755 => 100644 drivers/i3c/i3cdev.c
+
+diff --git a/drivers/gpio/gpiolib.c b/drivers/gpio/gpiolib.c
+index 71492d213ef4..71363f6f44c1 100644
+--- a/drivers/gpio/gpiolib.c
++++ b/drivers/gpio/gpiolib.c
+@@ -1117,6 +1117,23 @@ void gpio_device_put(struct gpio_device *gdev)
+ }
+ EXPORT_SYMBOL_GPL(gpio_device_put);
+ 
++/**
++ * gpio_device_to_device() - Retrieve the address of the underlying struct
++ *                           device.
++ * @gdev: GPIO device for which to return the address.
++ *
++ * This does not increase the reference count of the GPIO device nor the
++ * underlying struct device.
++ *
++ * Returns:
++ * Address of struct device backing this GPIO device.
++ */
++struct device *gpio_device_to_device(struct gpio_device *gdev)
++{
++        return &gdev->dev;
++}
++EXPORT_SYMBOL_GPL(gpio_device_to_device);
++
+ #ifdef CONFIG_GPIOLIB_IRQCHIP
+ 
+ /*
+diff --git a/drivers/i3c/i3cdev.c b/drivers/i3c/i3cdev.c
+old mode 100755
+new mode 100644
+diff --git a/drivers/spi/spi.c b/drivers/spi/spi.c
+index 2e275847ae83..60e592a80817 100644
+--- a/drivers/spi/spi.c
++++ b/drivers/spi/spi.c
+@@ -1361,6 +1361,9 @@ static int spi_transfer_wait(struct spi_controller *ctlr,
+ 				"SPI transfer timed out\n");
+ 			return -ETIMEDOUT;
+ 		}
++
++		if (xfer->error & SPI_TRANS_FAIL_IO)
++			return -EIO;
+ 	}
+ 
+ 	return 0;
+diff --git a/include/linux/gpio/driver.h b/include/linux/gpio/driver.h
+index d6e38a500833..722fd6c501a8 100644
+--- a/include/linux/gpio/driver.h
++++ b/include/linux/gpio/driver.h
+@@ -613,6 +613,8 @@ struct gpio_device *gpio_device_find(void *data,
+ struct gpio_device *gpio_device_get(struct gpio_device *gdev);
+ void gpio_device_put(struct gpio_device *gdev);
+ 
++struct device *gpio_device_to_device(struct gpio_device *gdev);
++
+ bool gpiochip_line_is_irq(struct gpio_chip *gc, unsigned int offset);
+ int gpiochip_reqres_irq(struct gpio_chip *gc, unsigned int offset);
+ void gpiochip_relres_irq(struct gpio_chip *gc, unsigned int offset);
+diff --git a/include/linux/overflow.h b/include/linux/overflow.h
+index f9b60313eaea..721b4629c53d 100644
+--- a/include/linux/overflow.h
++++ b/include/linux/overflow.h
+@@ -309,4 +309,86 @@ static inline size_t __must_check size_sub(size_t minuend, size_t subtrahend)
+ #define struct_size_t(type, member, count)					\
+ 	struct_size((type *)NULL, member, count)
+ 
++/**
++ * __DEFINE_FLEX() - helper macro for DEFINE_FLEX() family.
++ * Enables caller macro to pass arbitrary trailing expressions
++ *
++ * @type: structure type name, including "struct" keyword.
++ * @name: Name for a variable to define.
++ * @member: Name of the array member.
++ * @count: Number of elements in the array; must be compile-time const.
++ * @trailer: Trailing expressions for attributes and/or initializers.
++ */
++#define __DEFINE_FLEX(type, name, member, count, trailer...)			\
++	_Static_assert(__builtin_constant_p(count),				\
++		       "onstack flex array members require compile-time const count"); \
++	union {									\
++		u8 bytes[struct_size_t(type, member, count)];			\
++		type obj;							\
++	} name##_u trailer;							\
++	type *name = (type *)&name##_u
++
++/**
++ * _DEFINE_FLEX() - helper macro for DEFINE_FLEX() family.
++ * Enables caller macro to pass (different) initializer.
++ *
++ * @type: structure type name, including "struct" keyword.
++ * @name: Name for a variable to define.
++ * @member: Name of the array member.
++ * @count: Number of elements in the array; must be compile-time const.
++ * @initializer: Initializer expression (e.g., pass `= { }` at minimum).
++ */
++#define _DEFINE_FLEX(type, name, member, count, initializer...)			\
++	__DEFINE_FLEX(type, name, member, count, = { .obj initializer })
++
++/**
++ * DEFINE_RAW_FLEX() - Define an on-stack instance of structure with a trailing
++ * flexible array member, when it does not have a __counted_by annotation.
++ *
++ * @type: structure type name, including "struct" keyword.
++ * @name: Name for a variable to define.
++ * @member: Name of the array member.
++ * @count: Number of elements in the array; must be compile-time const.
++ *
++ * Define a zeroed, on-stack, instance of @type structure with a trailing
++ * flexible array member.
++ * Use __struct_size(@name) to get compile-time size of it afterwards.
++ * Use __member_size(@name->member) to get compile-time size of @name members.
++ * Use STACK_FLEX_ARRAY_SIZE(@name, @member) to get compile-time number of
++ * elements in array @member.
++ */
++#define DEFINE_RAW_FLEX(type, name, member, count)	\
++	__DEFINE_FLEX(type, name, member, count, = { })
++
++/**
++ * DEFINE_FLEX() - Define an on-stack instance of structure with a trailing
++ * flexible array member.
++ *
++ * @TYPE: structure type name, including "struct" keyword.
++ * @NAME: Name for a variable to define.
++ * @MEMBER: Name of the array member.
++ * @COUNTER: Name of the __counted_by member.
++ * @COUNT: Number of elements in the array; must be compile-time const.
++ *
++ * Define a zeroed, on-stack, instance of @TYPE structure with a trailing
++ * flexible array member.
++ * Use __struct_size(@NAME) to get compile-time size of it afterwards.
++ * Use __member_size(@NAME->member) to get compile-time size of @NAME members.
++ * Use STACK_FLEX_ARRAY_SIZE(@name, @member) to get compile-time number of
++ * elements in array @member.
++ */
++#define DEFINE_FLEX(TYPE, NAME, MEMBER, COUNTER, COUNT)	\
++	_DEFINE_FLEX(TYPE, NAME, MEMBER, COUNT, = { .COUNTER = COUNT, })
++
++/**
++ * STACK_FLEX_ARRAY_SIZE() - helper macro for DEFINE_FLEX() family.
++ * Returns the number of elements in @array.
++ *
++ * @name: Name for a variable defined in DEFINE_RAW_FLEX()/DEFINE_FLEX().
++ * @array: Name of the array member.
++ */
++#define STACK_FLEX_ARRAY_SIZE(name, array)						\
++	(__member_size((name)->array) / sizeof(*(name)->array) +			\
++						__must_be_array((name)->array))
++
+ #endif /* __LINUX_OVERFLOW_H */
+diff --git a/include/linux/spi/spi.h b/include/linux/spi/spi.h
+index 8cc7a99927f9..466899865053 100644
+--- a/include/linux/spi/spi.h
++++ b/include/linux/spi/spi.h
+@@ -1039,6 +1039,7 @@ struct spi_transfer {
+ 	unsigned	len;
+ 
+ #define SPI_TRANS_FAIL_NO_START	BIT(0)
++#define SPI_TRANS_FAIL_IO       BIT(1)
+ 	u16		error;
+ 
+ 	dma_addr_t	tx_dma;
+-- 
+2.34.1
+

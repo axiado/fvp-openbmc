@@ -1,0 +1,27 @@
+From 71486faeae67d97cfa14337e13e6efdf391393de Mon Sep 17 00:00:00 2001
+From: Louis Liao <lliao@axiado.com>
+Date: Thu, 17 Sep 2026 01:14:55 -0700
+Subject: [PATCH] Allow spidev kernel module create device node
+
+Upstream-Status: Pending
+
+Signed-off-by: Louis Liao <lliao@axiado.com>
+---
+ drivers/spi/spidev.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/spi/spidev.c b/drivers/spi/spidev.c
+index d13dc15cc191..f77ce4f8e301 100644
+--- a/drivers/spi/spidev.c
++++ b/drivers/spi/spidev.c
+@@ -714,6 +714,7 @@ static const struct spi_device_id spidev_spi_ids[] = {
+ 	{ .name = "spi-authenta" },
+ 	{ .name = "em3581" },
+ 	{ .name = "si3210" },
++	{ .name = /* silabs */ "axiado,spidev" },
+ 	{},
+ };
+ MODULE_DEVICE_TABLE(spi, spidev_spi_ids);
+-- 
+2.34.1
+

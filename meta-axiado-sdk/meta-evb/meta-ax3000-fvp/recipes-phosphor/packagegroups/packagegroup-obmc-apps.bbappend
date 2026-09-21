@@ -11,4 +11,7 @@ RDEPENDS:${PN}-extras:append = " \
   phosphor-ipmi-blobs \
   biosconfig-manager \
   phosphor-state-manager \
+  spidev-test \
+  minicom \
+  lstp-config \
 "
