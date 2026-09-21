@@ -1,0 +1,1 @@
+SUBSYSTEM=="tty", ATTRS{iomem_base}=="0x33120000", ENV{SYSTEMD_WANTS}="obmc-console@ttyPS2", TAG+="systemd"
