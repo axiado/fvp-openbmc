@@ -75,6 +75,8 @@ Available machines:
 evk-axiado-github
 evk-ax3005-github
 evk-ax3005-fvp-github
+evk-ax3000-fvp
+evk-ax3000-fvp-github
 ```
 
 - Ax3000 SoC
