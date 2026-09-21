@@ -11,6 +11,8 @@ BBLAYERS ?= " \
   ##OEROOT##/meta-openembedded/meta-networking \
   ##OEROOT##/meta-openembedded/meta-python \
   ##OEROOT##/meta-phosphor \
+  ##OEROOT##/meta-evb \
+  ##OEROOT##/meta-evb/meta-common \
   ##OEROOT##/meta-axiado-sdk \
   ##OEROOT##/meta-axiado-sdk/meta-ax3000-sdk \
   ##OEROOT##/meta-axiado-sdk/meta-evb \
