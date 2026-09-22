@@ -29,7 +29,7 @@ channels:
     enabled: true
     name: GPIO
     config:
-      ngpio: 2
+      ngpio: 4
       pins:
         0:
           name: fvp_gpio_output
@@ -45,6 +45,30 @@ channels:
           led_support: not_led
         1:
           name: fvp_gpio_input
+          direction: input
+          default_output: low
+          output_drive: push_pull
+          output_persist_state: true
+          bias: none
+          bias_pull_strength_ohm: 0
+          output_drive_strength_ma: 0
+          slew_rate: 0
+          input_debounce_us: 0
+          led_support: not_led
+        2:
+          name: pwr_req
+          direction: output
+          default_output: high
+          output_drive: push_pull
+          output_persist_state: true
+          bias: none
+          bias_pull_strength_ohm: 0
+          output_drive_strength_ma: 0
+          slew_rate: 0
+          input_debounce_us: 0
+          led_support: not_led
+        3:
+          name: pgood_ok
           direction: input
           default_output: low
           output_drive: push_pull
