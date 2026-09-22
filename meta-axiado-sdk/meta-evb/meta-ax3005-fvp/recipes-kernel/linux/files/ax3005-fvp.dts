@@ -55,6 +55,25 @@
                                 nvidia,allow-set-irq;
                                 nvidia,bias = "pull-up";
                         };
+
+                        /* gpio4 offset 24 == global line 152 */
+                        pin@2 {
+                                reg = <2>;
+                                label = "pwr_req";
+                                gpios = <&gpio4 24 GPIO_ACTIVE_HIGH>;
+                                nvidia,allow-direction-control;
+                                nvidia,allow-set-irq;
+                                nvidia,drive = "push-pull";
+                        };
+
+                        /* gpio4 offset 25 == global line 153 */
+                        pin@3 {
+                                reg = <3>;
+                                label = "pgood_ok";
+                                gpios = <&gpio4 25 GPIO_ACTIVE_HIGH>;
+                                nvidia,allow-set-irq;
+                                nvidia,bias = "pull-up";
+                        };
                 };
 
                 channel@3 {
