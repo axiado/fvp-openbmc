@@ -111,6 +111,42 @@
                         nvidia,parity = "none";
                         nvidia,flow-control = "none";
                 };
+
+		channel@6 {
+			reg = <6>;
+			nvidia,channel-type = "uart-tty";
+			nvidia,channel-name = "UART0";
+			uart = <&uart0>;
+			current-speed = <115200>;
+			nvidia,data-bits = <8>;
+			nvidia,stop-bits = <1>;
+			nvidia,parity = "none";
+			nvidia,flow-control = "none";
+		};
+
+		channel@7 {
+			reg = <7>;
+			nvidia,channel-type = "uart-tty";
+			nvidia,channel-name = "UART1";
+			uart = <&uart1>;
+			current-speed = <115200>;
+			nvidia,data-bits = <8>;
+			nvidia,stop-bits = <1>;
+			nvidia,parity = "none";
+			nvidia,flow-control = "none";
+		};
+
+		channel@8 {
+			reg = <8>;
+			nvidia,channel-type = "uart-tty";
+			nvidia,channel-name = "UART2";
+			uart = <&uart2>;
+			current-speed = <115200>;
+			nvidia,data-bits = <8>;
+			nvidia,stop-bits = <1>;
+			nvidia,parity = "none";
+			nvidia,flow-control = "none";
+		};
         };
 };
 

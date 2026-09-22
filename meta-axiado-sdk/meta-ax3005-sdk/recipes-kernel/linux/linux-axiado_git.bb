@@ -5,6 +5,7 @@ SRC_URI += "file://0001-Enable-ARM-TrustZone.patch \
             file://kernel.cfg \
             file://0000-nv-lstp-poc.patch \
             file://0001-debug-ssif-master-slave-in-one-BMC.patch \
+            file://0002-add-lstp-bridge-side-uart-forwarder.patch \
             "
 
 LINUX_VERSION = "6.18.20"

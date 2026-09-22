@@ -1,0 +1,1508 @@
+From 7ddc5ed8e3c63efe1e80740d877fa49f3296810b Mon Sep 17 00:00:00 2001
+From: Louis Liao <lliao@axiado.com>
+Date: Tue, 22 Sep 2026 01:07:43 -0700
+Subject: [PATCH] Add LSTP bridge side uart forwarder
+
+Upstream-Status: Pending
+
+Signed-off-by: Louis Liao <lliao@axiado.com>
+---
+ .../devicetree/bindings/usb/nvidia,lstp.yaml  |  112 +-
+ drivers/usb/misc/lstp_bridge/Kconfig          |   17 +-
+ drivers/usb/misc/lstp_bridge/Makefile         |    3 +-
+ drivers/usb/misc/lstp_bridge/lstp-core.c      |   15 +-
+ .../usb/misc/lstp_bridge/lstp-uart-driver.c   | 1216 +++++++++++++++++
+ drivers/usb/misc/lstp_bridge/lstp.h           |   10 +
+ 6 files changed, 1360 insertions(+), 13 deletions(-)
+ create mode 100644 drivers/usb/misc/lstp_bridge/lstp-uart-driver.c
+
+diff --git a/Documentation/devicetree/bindings/usb/nvidia,lstp.yaml b/Documentation/devicetree/bindings/usb/nvidia,lstp.yaml
+index 9f441e804de3..027dfc9e7ae7 100644
+--- a/Documentation/devicetree/bindings/usb/nvidia,lstp.yaml
++++ b/Documentation/devicetree/bindings/usb/nvidia,lstp.yaml
+@@ -48,15 +48,19 @@ patternProperties:
+         description: LSTP channel identifier.
+ 
+       nvidia,channel-type:
+-        enum: [management, i2c, gpio, spi, uart, virtual-uart]
++        enum: [management, i2c, gpio, spi, uart, uart-tty, virtual-uart]
+         description: |
+           Channel type as reported to the host.  Exactly one channel of
+           type "management" must exist and it must be channel 0.
+ 
+-          "uart" and "virtual-uart" are both reported to the host as UART
+-          channels.  A "uart" channel hands over one of the local serial
+-          controllers, a "virtual-uart" channel has no controller behind it
+-          and shows up locally as /dev/ttyVUARTn instead.
++          "uart", "uart-tty" and "virtual-uart" are all reported to the host
++          as UART channels.  A "uart" channel hands over one of the local
++          serial controllers through the serial device bus and a "uart-tty"
++          channel hands over the same kind of controller through the tty
++          layer, which costs one buffer hop and in exchange lets the host set
++          the whole character framing instead of 8N1 only.  A "virtual-uart"
++          channel has no controller behind it and shows up locally as
++          /dev/ttyVUARTn instead.
+ 
+       nvidia,channel-name:
+         $ref: /schemas/types.yaml#/definitions/string
+@@ -174,6 +178,89 @@ patternProperties:
+           required:
+             - uart
+ 
++      - if:
++          properties:
++            nvidia,channel-type:
++              const: uart-tty
++        then:
++          description: |
++            A tty backed UART channel points straight at the serial
++            controller, so unlike a "uart" channel it needs no LSTP specific
++            child node under it.  The channel claims that controller's tty
++            for the kernel while it exists, which takes it away from
++            userspace, and puts a line discipline of its own on it.
++
++            Everything the port cannot do is refused rather than silently
++            downgraded: the framing below is programmed through termios and
++            read back, and a mismatch fails the probe or answers a host
++            WriteConfig with NOT_SUPPORTED.
++          properties:
++            uart:
++              $ref: /schemas/types.yaml#/definitions/phandle
++              description: |
++                Points at the serial controller whose port this channel
++                drives, for example <&uart6>.  The channel probe defers until
++                the controller has registered its tty.  A controller with
++                more than one port is not supported here; the first tty below
++                it is taken.
++
++            nvidia,tty-name:
++              $ref: /schemas/types.yaml#/definitions/string
++              description: |
++                Alternative to the uart phandle for a port that has no
++                controller node to point at, such as a USB serial adapter:
++                the tty device name without the /dev/ prefix, for example
++                "ttyUSB0".  Ignored when uart is present.
++
++            current-speed:
++              default: 115200
++              description: Initial baud rate, also reported to the host.
++
++            nvidia,data-bits:
++              $ref: /schemas/types.yaml#/definitions/uint32
++              enum: [5, 6, 7, 8]
++              default: 8
++              description: Initial data bits, also reported to the host.
++
++            nvidia,stop-bits:
++              $ref: /schemas/types.yaml#/definitions/uint32
++              enum: [1, 2]
++              default: 1
++              description: Initial stop bits, also reported to the host.
++
++            nvidia,parity:
++              enum: [none, odd, even, mark, space]
++              default: none
++              description: Initial parity, also reported to the host.
++
++            nvidia,flow-control:
++              enum: [none, xon-xoff, rts-cts, dtr-dsr]
++              default: none
++              description: |
++                Initial flow control, also reported to the host.  Only the
++                RTS/CTS lines are driven, so "xon-xoff" and "dtr-dsr" are
++                rejected.
++
++            nvidia,drive-strength-ma:
++              $ref: /schemas/types.yaml#/definitions/uint32
++              description: Reported drive strength, in mA.
++
++            nvidia,slew-rate:
++              $ref: /schemas/types.yaml#/definitions/uint32
++              description: Reported slew rate, in 100 ps steps.
++
++            nvidia,input-debounce-us:
++              $ref: /schemas/types.yaml#/definitions/uint32
++              description: Reported input debounce time, in us.
++
++            nvidia,glitch-filter-ns:
++              $ref: /schemas/types.yaml#/definitions/uint32
++              description: Reported glitch filter width, in ns.
++
++          oneOf:
++            - required: [uart]
++            - required: [nvidia,tty-name]
++
+       - if:
+           properties:
+             nvidia,channel-type:
+@@ -360,6 +447,10 @@ examples:
+         };
+     };
+ 
++    /* A "uart-tty" channel points at the controller itself, not at a child. */
++    uart1: serial-1 {
++    };
++
+     lstp {
+         compatible = "nvidia,lstp";
+         #address-cells = <1>;
+@@ -421,6 +512,17 @@ examples:
+ 
+         channel@5 {
+             reg = <5>;
++            nvidia,channel-type = "uart-tty";
++            nvidia,channel-name = "HOST_DBG";
++            uart = <&uart1>;
++            current-speed = <115200>;
++            nvidia,data-bits = <7>;
++            nvidia,stop-bits = <1>;
++            nvidia,parity = "even";
++        };
++
++        channel@6 {
++            reg = <6>;
+             nvidia,channel-type = "virtual-uart";
+             nvidia,channel-name = "BMC_SOL";
+             current-speed = <115200>;
+diff --git a/drivers/usb/misc/lstp_bridge/Kconfig b/drivers/usb/misc/lstp_bridge/Kconfig
+index bb79b3e2c261..9ccce4c1763b 100644
+--- a/drivers/usb/misc/lstp_bridge/Kconfig
++++ b/drivers/usb/misc/lstp_bridge/Kconfig
+@@ -13,12 +13,17 @@ config USB_LSTP
+ 	  USB gadget function, so a Linux machine such as a BMC can serve its
+ 	  own I2C adapters, GPIO lines, SPI devices and UARTs to an LSTP host.
+ 
+-	  UART channels are driven through the serial device bus, so
+-	  SERIAL_DEV_CTRL_TTYPORT is needed for them to reach a normal serial
+-	  driver.  A "virtual-uart" channel needs no controller at all: it
+-	  registers a serial driver of its own and appears locally as
+-	  /dev/ttyVUARTn, so the host talks to software on this machine
+-	  instead of to a wire.
++	  A "uart" channel is driven through the serial device bus, so
++	  SERIAL_DEV_CTRL_TTYPORT is needed for it to reach a normal serial
++	  driver.  A "uart-tty" channel points at the same kind of controller
++	  but reaches it through the tty layer: it claims that controller's tty
++	  for the kernel and puts a line discipline of its own on it, which
++	  costs one buffer hop and in exchange lets the host set the whole
++	  character framing (5 to 8 data bits, 1 or 2 stop bits and all five
++	  parity modes) rather than only 8N1.  A "virtual-uart" channel needs no
++	  controller at all: it registers a serial driver of its own and
++	  appears locally as /dev/ttyVUARTn, so the host talks to software on
++	  this machine instead of to a wire.
+ 
+ 	  The channel layout is taken from the device tree; see
+ 	  Documentation/devicetree/bindings/usb/nvidia,lstp.yaml.  Once the
+diff --git a/drivers/usb/misc/lstp_bridge/Makefile b/drivers/usb/misc/lstp_bridge/Makefile
+index 1d3b66c94c24..433890cb0dd5 100644
+--- a/drivers/usb/misc/lstp_bridge/Makefile
++++ b/drivers/usb/misc/lstp_bridge/Makefile
+@@ -6,4 +6,5 @@ obj-$(CONFIG_USB_LSTP)		+= usb-lstp.o
+ 
+ usb-lstp-y			:= lstp-core.o f_lstp.o lstp-mgmt.o \
+ 				   lstp-i2c.o lstp-gpio.o lstp-spi.o \
+-				   lstp-uart.o lstp-vuart.o
++				   lstp-uart.o lstp-uart-driver.o \
++				   lstp-vuart.o
+diff --git a/drivers/usb/misc/lstp_bridge/lstp-core.c b/drivers/usb/misc/lstp_bridge/lstp-core.c
+index 977447bd6d70..1ac9c676c83c 100644
+--- a/drivers/usb/misc/lstp_bridge/lstp-core.c
++++ b/drivers/usb/misc/lstp_bridge/lstp-core.c
+@@ -323,6 +323,12 @@ static const struct lstp_type_info lstp_types[] = {
+ 	{ "gpio",	LSTP_CH_GPIO,		&lstp_gpio_ops },
+ 	{ "spi",	LSTP_CH_SPI,		&lstp_spi_ops },
+ 	{ "uart",	LSTP_CH_UART,		&lstp_uart_ops },
++	/*
++	 * The same UART to the host, reached through the tty layer rather
++	 * than through serdev: it binds by tty device name and can set the
++	 * character framing the host asks for.
++	 */
++	{ "uart-tty",	LSTP_CH_UART,		&lstp_uart_tty_ops },
+ 	/*
+ 	 * Also a UART to the host, which is the point: the difference is that
+ 	 * nothing on this board drives a wire for it.
+@@ -568,10 +574,14 @@ static int __init lstp_init(void)
+ 	if (ret)
+ 		goto err_spi;
+ 
+-	ret = lstp_vuart_driver_register();
++	ret = lstp_uart_tty_driver_register();
+ 	if (ret)
+ 		goto err_uart;
+ 
++	ret = lstp_vuart_driver_register();
++	if (ret)
++		goto err_uart_tty;
++
+ 	ret = platform_driver_register(&lstp_platform_driver);
+ 	if (ret)
+ 		goto err_vuart;
+@@ -586,6 +596,8 @@ static int __init lstp_init(void)
+ 	platform_driver_unregister(&lstp_platform_driver);
+ err_vuart:
+ 	lstp_vuart_driver_unregister();
++err_uart_tty:
++	lstp_uart_tty_driver_unregister();
+ err_uart:
+ 	lstp_uart_driver_unregister();
+ err_spi:
+@@ -599,6 +611,7 @@ static void __exit lstp_exit(void)
+ 	lstp_function_unregister();
+ 	platform_driver_unregister(&lstp_platform_driver);
+ 	lstp_vuart_driver_unregister();
++	lstp_uart_tty_driver_unregister();
+ 	lstp_uart_driver_unregister();
+ 	lstp_spi_driver_unregister();
+ }
+diff --git a/drivers/usb/misc/lstp_bridge/lstp-uart-driver.c b/drivers/usb/misc/lstp_bridge/lstp-uart-driver.c
+new file mode 100644
+index 000000000000..95ebca082e45
+--- /dev/null
++++ b/drivers/usb/misc/lstp_bridge/lstp-uart-driver.c
+@@ -0,0 +1,1216 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * LSTP UART channel, driven through the tty layer.
++ *
++ * This is the second way an LSTP UART channel can reach a wire.  lstp-uart.c
++ * binds a serdev device and talks to the controller below the tty layer;
++ * this one claims the tty itself and puts a line discipline of its own on it:
++ *
++ *	/dev/ttyLSTPn -> lstp host -> USB -> lstp-core -> this channel
++ *		-> tty core (N_LSTP ldisc) -> serial driver -> tx/rx pins
++ *
++ * Going through the tty layer costs one more buffer hop than serdev does and
++ * buys the two things serdev cannot express:
++ *
++ *   framing	tty_set_termios() reaches every bit of c_cflag, so 5 to 8 data
++ *		bits, 1 or 2 stop bits and all five parity modes of the LSTP
++ *		configuration blob are settable rather than rejected.  What the
++ *		controller could not do is read back out of the termios it
++ *		rewrote and reported to the host as NOT_SUPPORTED.
++ *
++ *   binding	the channel points straight at the serial controller node, so a
++ *		board does not have to describe a serial slave that is not
++ *		really there, and the port is only taken away from userspace
++ *		while the channel exists.
++ *
++ * Both directions are decoupled from the transport by a FIFO so that neither
++ * the USB RX workqueue nor the tty flush worker ever blocks on the other side:
++ *
++ *   host -> wire	->receive() drops the payload into @tx_fifo and answers
++ *			immediately, exactly like handing bytes to a UART FIFO.
++ *			@tx_work drains it into the tty.  A payload that does
++ *			not fit is NAKed, which is the back pressure signal the
++ *			host retries on.
++ *
++ *   wire -> host	->receive_buf2() fills @rx_fifo and @rx_work turns it
++ *			into unsolicited WRITE requests, waiting for the host to
++ *			acknowledge each one.  A short return from
++ *			->receive_buf2() leaves the rest in the tty buffer,
++ *			which is real back pressure all the way down to the RTS
++ *			line when hardware flow control is on.
++ *
++ * The pad related fields of the configuration blob (drive strength, slew rate,
++ * debounce, glitch filter) are board properties set up through pinctrl; they
++ * are taken from the device tree and reported back verbatim.
++ *
++ * Copyright (c) 2026 Axiado Corporation
++ */
++
++#include <linux/cleanup.h>
++#include <linux/delay.h>
++#include <linux/errno.h>
++#include <linux/kfifo.h>
++#include <linux/module.h>
++#include <linux/mutex.h>
++#include <linux/of.h>
++#include <linux/of_platform.h>
++#include <linux/platform_device.h>
++#include <linux/slab.h>
++#include <linux/spinlock.h>
++#include <linux/string.h>
++#include <linux/termios.h>
++#include <linux/tty.h>
++#include <linux/tty_buffer.h>
++#include <linux/tty_driver.h>
++#include <linux/tty_flip.h>
++#include <linux/tty_ldisc.h>
++#include <linux/workqueue.h>
++
++#include "lstp.h"
++
++/*
++ * N_DEVELOPMENT is the slot reserved for out of tree line disciplines and is
++ * the only free one; NR_LDISCS would have to grow for a number of our own.
++ * Nothing else in this kernel claims it.
++ */
++#define LSTP_UART_TTY_LDISC		N_DEVELOPMENT
++
++/*
++ * Each FIFO buffers a little over a second of traffic at 115200 baud, which
++ * is what it takes to absorb the bursts a serial console produces without
++ * leaning on the protocol level retries of either side.
++ */
++#define LSTP_UART_TTY_FIFO_SIZE		16384
++
++/*
++ * The host answers an unsolicited WRITE straight from its USB RX completion,
++ * so a round trip is a couple of USB microframes.  Anything beyond this means
++ * the host stopped listening.
++ */
++#define LSTP_UART_TTY_PUSH_TIMEOUT_MS	250
++/* A NAK means the host tty buffer is full; give its reader time to drain. */
++#define LSTP_UART_TTY_PUSH_RETRIES	10
++#define LSTP_UART_TTY_PUSH_RETRY_MS	20
++
++/* Length of a generated break, in character times. */
++#define LSTP_UART_TTY_BREAK_CHARS	4
++#define LSTP_UART_TTY_BREAK_MIN_US	500UL
++#define LSTP_UART_TTY_BREAK_MAX_US	(100UL * USEC_PER_MSEC)
++/* How long to let the transmitter empty before framing a break. */
++#define LSTP_UART_TTY_BREAK_DRAIN_MS	100
++
++/* Distinct from every status that fits in the seven bit status field. */
++#define LSTP_UART_TTY_NO_STATUS		(-1)
++
++/* The c_cflag bits this channel owns and therefore has to verify. */
++#define LSTP_UART_TTY_CFLAG_MASK \
++	(CSIZE | CSTOPB | PARENB | PARODD | CMSPAR | CRTSCTS)
++
++struct lstp_uart_tty {
++	struct lstp_channel *ch;
++	struct tty_struct *tty;
++	struct workqueue_struct *wq;
++
++	bool tty_opened;
++	bool ldisc_set;
++
++	struct mutex cfg_lock;		/* serialises configuration changes */
++	struct lstp_uart_config cfg;
++	bool configured;
++
++	/* Host -> wire. */
++	spinlock_t tx_lock;		/* guards tx_fifo and pending_break */
++	struct kfifo tx_fifo;
++	unsigned int pending_break;
++	struct work_struct tx_work;
++	u8 tx_chunk[LSTP_MAX_PAYLOAD];
++
++	/* Wire -> host. */
++	spinlock_t rx_lock;		/* guards rx_fifo and rx_tags */
++	struct kfifo rx_fifo;
++	u8 rx_tags;
++	struct work_struct rx_work;
++	/* One staged message: header followed by up to LSTP_MAX_PAYLOAD bytes. */
++	u8 rx_msg[LSTP_HDR_LEN + LSTP_MAX_PAYLOAD];
++
++	/* Acknowledgement of the message @rx_work has in flight. */
++	struct completion push_done;
++	int push_status;
++	bool aborted;
++};
++
++/* ------------------------------------------------------------------ */
++/* Line discipline							*/
++/* ------------------------------------------------------------------ */
++
++/*
++ * ->ldisc_open() gets nothing but the tty, so the channel that is installing
++ * the discipline publishes itself here for the length of the tty_set_ldisc()
++ * call.  Serialised by @lstp_uart_tty_bind_lock, which also keeps two channels
++ * from binding at the same time.
++ */
++static DEFINE_MUTEX(lstp_uart_tty_bind_lock);
++static struct lstp_uart_tty *lstp_uart_tty_binding;
++
++static int lstp_uart_tty_ldisc_open(struct tty_struct *tty)
++{
++	struct lstp_uart_tty *u = lstp_uart_tty_binding;
++
++	/* Somebody tried to use this line discipline outside LSTP. */
++	if (!u || u->tty != tty)
++		return -ENODEV;
++
++	if (!tty->ops->write)
++		return -EOPNOTSUPP;
++
++	tty->receive_room = LSTP_UART_TTY_FIFO_SIZE;
++	tty->disc_data = u;
++
++	return 0;
++}
++
++static void lstp_uart_tty_ldisc_close(struct tty_struct *tty)
++{
++	tty->disc_data = NULL;
++}
++
++static void lstp_uart_tty_ldisc_flush(struct tty_struct *tty)
++{
++	struct lstp_uart_tty *u = tty->disc_data;
++
++	if (!u)
++		return;
++
++	scoped_guard(spinlock_irqsave, &u->rx_lock)
++		kfifo_reset(&u->rx_fifo);
++}
++
++/*
++ * Called from the tty flush worker.  Returning short is the whole point: the
++ * bytes that did not fit stay in the tty buffer, the flush worker stops, and
++ * @rx_work restarts it once it has drained the FIFO.  With hardware flow
++ * control that back pressure reaches the wire; without it the tty buffer
++ * absorbs the burst and the controller reports what it had to drop.
++ *
++ * Return: the number of input bytes consumed, data and event placeholders
++ *	   alike.
++ */
++static size_t lstp_uart_tty_receive_buf2(struct tty_struct *tty, const u8 *cp,
++					 const u8 *fp, size_t count)
++{
++	struct lstp_uart_tty *u = tty->disc_data;
++	size_t done = 0;
++	u8 tags = 0;
++
++	/* Nothing owns the data yet, but dropping it must not stall the tty. */
++	if (!u)
++		return count;
++
++	scoped_guard(spinlock_irqsave, &u->rx_lock) {
++		while (done < count) {
++			unsigned int copied;
++			size_t run = 0;
++
++			/*
++			 * A flagged character is an event and the byte that
++			 * came with it is a placeholder, not payload.  Turn
++			 * the events the protocol can name into tags and drop
++			 * the placeholders; a byte flagged for a parity or
++			 * framing error only gets here if something else
++			 * turned INPCK on, and there is no tag for it.
++			 */
++			if (fp) {
++				while (done < count && fp[done] != TTY_NORMAL) {
++					if (fp[done] == TTY_BREAK)
++						tags |= LSTP_UART_TAG_BREAK_DET;
++					else if (fp[done] == TTY_OVERRUN)
++						tags |= LSTP_UART_TAG_TX_OVERRUN;
++					done++;
++				}
++				while (done + run < count &&
++				       fp[done + run] == TTY_NORMAL)
++					run++;
++			} else {
++				run = count - done;
++			}
++
++			/* Only reachable with done == count. */
++			if (!run)
++				continue;
++
++			copied = kfifo_in(&u->rx_fifo, cp + done, run);
++			done += copied;
++
++			/* Full: the tty holds the rest until @rx_work pushes. */
++			if (copied < run)
++				break;
++		}
++
++		u->rx_tags |= tags;
++	}
++
++	queue_work(u->wq, &u->rx_work);
++
++	return done;
++}
++
++static void lstp_uart_tty_write_wakeup(struct tty_struct *tty)
++{
++	struct lstp_uart_tty *u = tty->disc_data;
++
++	if (u)
++		queue_work(u->wq, &u->tx_work);
++}
++
++/*
++ * Reported rather than acted on: the channel keeps CLOCAL set so a carrier
++ * drop cannot hang the port up underneath the LSTP host.
++ */
++static void lstp_uart_tty_dcd_change(struct tty_struct *tty, bool active)
++{
++	struct lstp_uart_tty *u = tty->disc_data;
++
++	if (!u || active)
++		return;
++
++	scoped_guard(spinlock_irqsave, &u->rx_lock)
++		u->rx_tags |= LSTP_UART_TAG_CARRIER_DOWN;
++
++	queue_work(u->wq, &u->rx_work);
++}
++
++static struct tty_ldisc_ops lstp_uart_tty_ldisc_ops = {
++	.owner		= THIS_MODULE,
++	.num		= LSTP_UART_TTY_LDISC,
++	.name		= "lstp_uart",
++	.open		= lstp_uart_tty_ldisc_open,
++	.close		= lstp_uart_tty_ldisc_close,
++	.flush_buffer	= lstp_uart_tty_ldisc_flush,
++	.receive_buf2	= lstp_uart_tty_receive_buf2,
++	.write_wakeup	= lstp_uart_tty_write_wakeup,
++	.dcd_change	= lstp_uart_tty_dcd_change,
++};
++
++int lstp_uart_tty_driver_register(void)
++{
++	return tty_register_ldisc(&lstp_uart_tty_ldisc_ops);
++}
++
++void lstp_uart_tty_driver_unregister(void)
++{
++	tty_unregister_ldisc(&lstp_uart_tty_ldisc_ops);
++}
++
++/* ------------------------------------------------------------------ */
++/* Resolving the controller node to a tty device			*/
++/* ------------------------------------------------------------------ */
++
++/*
++ * The serial core hangs a serial_ctrl device off the controller device and a
++ * serial_port device off that, both reusing the controller's device tree node,
++ * and registers the tty device below the port device.  Three levels today,
++ * with room to spare in case another one appears.
++ */
++#define LSTP_UART_TTY_SEARCH_DEPTH	4
++
++struct lstp_uart_tty_search {
++	struct device *found;
++	unsigned int depth;
++};
++
++/*
++ * Nothing maps a device tree node to a tty: the tty class is not exported, so
++ * it cannot be searched from a module.  Walk down from the controller device
++ * instead and take the first tty below it, which for a serial controller is
++ * the tty of its port.
++ */
++static int lstp_uart_tty_walk(struct device *dev, void *data)
++{
++	struct lstp_uart_tty_search *search = data;
++	struct lstp_uart_tty_search below;
++
++	if (dev->devt && dev->class && !strcmp(dev->class->name, "tty")) {
++		search->found = get_device(dev);
++		return 1;
++	}
++
++	if (!search->depth)
++		return 0;
++
++	below.found = NULL;
++	below.depth = search->depth - 1;
++	device_for_each_child(dev, &below, lstp_uart_tty_walk);
++	if (!below.found)
++		return 0;
++
++	search->found = below.found;
++
++	return 1;
++}
++
++/*
++ * Return: 0 with @devt set, or -EPROBE_DEFER while the controller has not
++ *	   registered its port yet.  A controller that is not a platform
++ *	   device cannot be found this way; such a port is named with
++ *	   nvidia,tty-name instead.
++ */
++static int lstp_uart_tty_devt_of_node(struct lstp_channel *ch,
++				      struct device_node *np, dev_t *devt)
++{
++	struct lstp_uart_tty_search search = {
++		.depth = LSTP_UART_TTY_SEARCH_DEPTH,
++	};
++	struct platform_device *pdev;
++
++	pdev = of_find_device_by_node(np);
++	if (!pdev) {
++		dev_dbg(ch->dev->dev, "%pOF: %pOF has no device yet\n",
++			ch->np, np);
++		return -EPROBE_DEFER;
++	}
++
++	device_for_each_child(&pdev->dev, &search, lstp_uart_tty_walk);
++	put_device(&pdev->dev);
++
++	if (!search.found) {
++		dev_dbg(ch->dev->dev, "%pOF: %pOF has no tty yet\n", ch->np, np);
++		return -EPROBE_DEFER;
++	}
++
++	*devt = search.found->devt;
++	dev_dbg(ch->dev->dev, "%pOF: %pOF is %s\n", ch->np, np,
++		dev_name(search.found));
++	put_device(search.found);
++
++	return 0;
++}
++
++/*
++ * A channel names its port either by pointing at the serial controller, which
++ * is what a board should do, or by tty device name for a port that has no
++ * controller node to point at - a USB serial adapter, say.
++ */
++static int lstp_uart_tty_find_port(struct lstp_channel *ch, dev_t *devt)
++{
++	struct device *dev = ch->dev->dev;
++	const char *name;
++	int ret;
++
++	struct device_node *np __free(device_node) =
++		of_parse_phandle(ch->np, "uart", 0);
++	if (np)
++		return lstp_uart_tty_devt_of_node(ch, np, devt);
++
++	ret = of_property_read_string(ch->np, "nvidia,tty-name", &name);
++	if (ret) {
++		dev_err(dev, "%pOF: needs a uart phandle or nvidia,tty-name\n",
++			ch->np);
++		return -EINVAL;
++	}
++
++	/*
++	 * A serial driver registers its tty devices from its own probe, so
++	 * the name stays unresolvable until that has run.
++	 */
++	ret = tty_dev_name_to_number(name, devt);
++	if (ret) {
++		dev_dbg(dev, "%pOF: %s is not registered yet: %d\n", ch->np,
++			name, ret);
++		return -EPROBE_DEFER;
++	}
++
++	return 0;
++}
++
++/* ------------------------------------------------------------------ */
++/* Configuration							*/
++/* ------------------------------------------------------------------ */
++
++static int lstp_uart_tty_check_config(struct lstp_channel *ch,
++				      const struct lstp_uart_config *cfg)
++{
++	struct device *dev = ch->dev->dev;
++	u8 parity = LSTP_UART_PARITY_OF(cfg->parity_flow);
++	u8 flow = LSTP_UART_FLOW_OF(cfg->parity_flow);
++
++	if (!le32_to_cpu(cfg->speed)) {
++		dev_err(dev, "%pOF: baud rate must not be zero\n", ch->np);
++		return -EINVAL;
++	}
++	if (cfg->data_bits < 5 || cfg->data_bits > 8) {
++		dev_err(dev, "%pOF: %u data bits is not a serial framing\n",
++			ch->np, cfg->data_bits);
++		return -EINVAL;
++	}
++	if (cfg->stop_bits != 1 && cfg->stop_bits != 2) {
++		dev_err(dev, "%pOF: %u stop bits is not a serial framing\n",
++			ch->np, cfg->stop_bits);
++		return -EINVAL;
++	}
++	if (parity > LSTP_UART_PARITY_MAX) {
++		dev_err(dev, "%pOF: parity %u is not defined\n", ch->np, parity);
++		return -EINVAL;
++	}
++	if (flow > LSTP_UART_FLOW_MAX) {
++		dev_err(dev, "%pOF: flow control %u is not defined\n", ch->np,
++			flow);
++		return -EINVAL;
++	}
++
++	/*
++	 * XON/XOFF would have to be done by this line discipline and DTR/DSR
++	 * by driving the modem lines by hand; neither exists here, and a host
++	 * that believes it has flow control when it has none would overrun the
++	 * link rather than throttle.
++	 */
++	if (flow != LSTP_UART_FLOW_NONE && flow != LSTP_UART_FLOW_RTSCTS) {
++		dev_err(dev, "%pOF: flow control %u is not supported\n", ch->np,
++			flow);
++		return -EOPNOTSUPP;
++	}
++
++	return 0;
++}
++
++static unsigned int lstp_uart_tty_cflag(const struct lstp_uart_config *cfg)
++{
++	unsigned int cflag;
++
++	switch (cfg->data_bits) {
++	case 5:
++		cflag = CS5;
++		break;
++	case 6:
++		cflag = CS6;
++		break;
++	case 7:
++		cflag = CS7;
++		break;
++	default:
++		cflag = CS8;
++		break;
++	}
++
++	if (cfg->stop_bits == 2)
++		cflag |= CSTOPB;
++
++	switch (LSTP_UART_PARITY_OF(cfg->parity_flow)) {
++	case LSTP_UART_PARITY_ODD:
++		cflag |= PARENB | PARODD;
++		break;
++	case LSTP_UART_PARITY_EVEN:
++		cflag |= PARENB;
++		break;
++	case LSTP_UART_PARITY_MARK:
++		cflag |= PARENB | PARODD | CMSPAR;
++		break;
++	case LSTP_UART_PARITY_SPACE:
++		cflag |= PARENB | CMSPAR;
++		break;
++	}
++
++	if (LSTP_UART_FLOW_OF(cfg->parity_flow) == LSTP_UART_FLOW_RTSCTS)
++		cflag |= CRTSCTS;
++
++	return cflag;
++}
++
++/*
++ * Push one configuration at the port and check what came back.  A serial
++ * driver quietly downgrades what its controller cannot do - xilinx_uartps
++ * rewrites CS5 to CS8, for instance - and a host that asked for 7E1 and got
++ * 8N1 would mangle every byte it sends, so the readback decides whether the
++ * request was honoured.  The baud rate is the one exception: it is a divisor
++ * and rounding is expected, so a near miss is reported and accepted.
++ */
++static int lstp_uart_tty_program(struct lstp_uart_tty *u,
++				 const struct lstp_uart_config *cfg)
++{
++	unsigned int want = lstp_uart_tty_cflag(cfg);
++	u8 parity = LSTP_UART_PARITY_OF(cfg->parity_flow);
++	struct lstp_channel *ch = u->ch;
++	struct tty_struct *tty = u->tty;
++	u32 speed = le32_to_cpu(cfg->speed);
++	struct ktermios kt;
++	unsigned int got;
++	speed_t baud;
++
++	down_read(&tty->termios_rwsem);
++	kt = tty->termios;
++	up_read(&tty->termios_rwsem);
++
++	/*
++	 * Raw in both directions: the channel is a pipe for bytes and any
++	 * canonical processing on the way through would corrupt them.  INPCK
++	 * stays off on purpose - a byte that arrives with a parity or framing
++	 * error is still handed to the host, because the protocol has no way
++	 * to describe the error and dropping the byte silently is worse than
++	 * passing it on.  IGNBRK and BRKINT stay off so that a break arrives
++	 * as a flagged character and becomes a BREAK_DET tag.
++	 */
++	kt.c_iflag &= ~(IGNBRK | BRKINT | IGNPAR | PARMRK | INPCK | ISTRIP |
++			INLCR | IGNCR | ICRNL | IXON | IXOFF | IXANY | IMAXBEL);
++	kt.c_oflag &= ~OPOST;
++	kt.c_lflag &= ~(ECHO | ECHOE | ECHOK | ECHONL | ICANON | ISIG | IEXTEN);
++	kt.c_cflag &= ~(LSTP_UART_TTY_CFLAG_MASK | HUPCL);
++	/* CLOCAL: a carrier drop is reported to the host, not acted on. */
++	kt.c_cflag |= want | CREAD | CLOCAL;
++	tty_termios_encode_baud_rate(&kt, speed, speed);
++
++	tty_set_termios(tty, &kt);
++
++	down_read(&tty->termios_rwsem);
++	got = tty->termios.c_cflag & LSTP_UART_TTY_CFLAG_MASK;
++	baud = tty_termios_baud_rate(&tty->termios);
++	up_read(&tty->termios_rwsem);
++
++	if (got != want) {
++		dev_err(ch->dev->dev,
++			"%pOF: %s cannot do %u%c%u flow control %u (wanted c_cflag %#x, got %#x)\n",
++			ch->np, tty_name(tty), cfg->data_bits, "NOEMS"[parity],
++			cfg->stop_bits, LSTP_UART_FLOW_OF(cfg->parity_flow),
++			want, got);
++		return -EOPNOTSUPP;
++	}
++
++	if (baud != speed)
++		dev_warn(ch->dev->dev, "%pOF: baud rate %u rounded to %u\n",
++			 ch->np, speed, baud);
++
++	dev_info(ch->dev->dev,
++		 "%pOF: %s at %u baud, %u%c%u, flow control %u\n", ch->np,
++		 tty_name(tty), baud, cfg->data_bits, "NOEMS"[parity],
++		 cfg->stop_bits, LSTP_UART_FLOW_OF(cfg->parity_flow));
++
++	return 0;
++}
++
++/* Caller holds cfg_lock; @cfg has passed lstp_uart_tty_check_config(). */
++static int lstp_uart_tty_apply_config(struct lstp_uart_tty *u,
++				      const struct lstp_uart_config *cfg)
++{
++	int ret = lstp_uart_tty_program(u, cfg);
++
++	if (ret) {
++		/*
++		 * Half of the request may already be on the controller.  Put
++		 * the framing that was in effect back so the link keeps
++		 * working with the settings the host still believes in.
++		 */
++		if (u->configured)
++			lstp_uart_tty_program(u, &u->cfg);
++		return ret;
++	}
++
++	u->cfg = *cfg;
++	u->configured = true;
++
++	return 0;
++}
++
++static int lstp_uart_tty_parse_dt_config(struct lstp_channel *ch,
++					 struct lstp_uart_config *cfg)
++{
++	static const char * const parity_names[] = {
++		[LSTP_UART_PARITY_NONE]  = "none",
++		[LSTP_UART_PARITY_ODD]   = "odd",
++		[LSTP_UART_PARITY_EVEN]  = "even",
++		[LSTP_UART_PARITY_MARK]  = "mark",
++		[LSTP_UART_PARITY_SPACE] = "space",
++	};
++	static const char * const flow_names[] = {
++		[LSTP_UART_FLOW_NONE]    = "none",
++		[LSTP_UART_FLOW_XONXOFF] = "xon-xoff",
++		[LSTP_UART_FLOW_RTSCTS]  = "rts-cts",
++		[LSTP_UART_FLOW_DTRDSR]  = "dtr-dsr",
++	};
++	struct device_node *np = ch->np;
++	const char *name;
++	int parity = LSTP_UART_PARITY_NONE;
++	int flow = LSTP_UART_FLOW_NONE;
++	u32 val;
++
++	memset(cfg, 0, sizeof(*cfg));
++
++	if (of_property_read_u32(np, "current-speed", &val))
++		val = 115200;
++	cfg->speed = cpu_to_le32(val);
++
++	if (of_property_read_u32(np, "nvidia,data-bits", &val))
++		val = 8;
++	cfg->data_bits = val;
++
++	if (of_property_read_u32(np, "nvidia,stop-bits", &val))
++		val = 1;
++	cfg->stop_bits = val;
++
++	if (!of_property_read_string(np, "nvidia,parity", &name)) {
++		parity = match_string(parity_names, ARRAY_SIZE(parity_names),
++				      name);
++		if (parity < 0) {
++			dev_err(ch->dev->dev, "%pOF: bad nvidia,parity '%s'\n",
++				np, name);
++			return -EINVAL;
++		}
++	}
++
++	if (!of_property_read_string(np, "nvidia,flow-control", &name)) {
++		flow = match_string(flow_names, ARRAY_SIZE(flow_names), name);
++		if (flow < 0) {
++			dev_err(ch->dev->dev,
++				"%pOF: bad nvidia,flow-control '%s'\n", np,
++				name);
++			return -EINVAL;
++		}
++	}
++
++	cfg->parity_flow = LSTP_UART_PARITY_FLOW(parity, flow);
++
++	/* Reported to the host only; the pads are set up through pinctrl. */
++	if (!of_property_read_u32(np, "nvidia,drive-strength-ma", &val))
++		cfg->output_drive_strength = cpu_to_le16(min(val, 0xffffu));
++	if (!of_property_read_u32(np, "nvidia,slew-rate", &val))
++		cfg->slew_rate = cpu_to_le16(min(val, 0xffffu));
++	if (!of_property_read_u32(np, "nvidia,input-debounce-us", &val))
++		cfg->input_debounce_time = cpu_to_le16(min(val, 0xffffu));
++	if (!of_property_read_u32(np, "nvidia,glitch-filter-ns", &val))
++		cfg->glitch_filter_width = cpu_to_le16(min(val, 0xffffu));
++
++	return lstp_uart_tty_check_config(ch, cfg);
++}
++
++static int lstp_uart_tty_read_config(struct lstp_channel *ch, u16 offset,
++				     u16 length, u8 *out, size_t out_max)
++{
++	struct lstp_uart_tty *u = ch->priv;
++
++	if (out_max < sizeof(u->cfg))
++		return -EINVAL;
++
++	guard(mutex)(&u->cfg_lock);
++	memcpy(out, &u->cfg, sizeof(u->cfg));
++
++	return sizeof(u->cfg);
++}
++
++/*
++ * The blob is a fixed size record, so a write that does not cover all of it
++ * is acknowledged but ignored: applying half a configuration would leave the
++ * link in a state neither side asked for.
++ */
++static int lstp_uart_tty_write_config(struct lstp_channel *ch, const u8 *req,
++				      size_t len)
++{
++	const struct lstp_hdr *hdr = (const struct lstp_hdr *)req;
++	size_t head = sizeof(struct lstp_config_write_req) +
++		      sizeof(struct lstp_config_blob);
++	size_t payload_len = lstp_hdr_payload_len(hdr);
++	const struct lstp_config_write_req *wr;
++	struct lstp_uart_tty *u = ch->priv;
++	struct lstp_uart_config cfg;
++	size_t cfg_len;
++	int ret;
++
++	if (payload_len < head)
++		return -EINVAL;
++	cfg_len = payload_len - head;
++
++	wr = (const struct lstp_config_write_req *)(req + LSTP_HDR_LEN);
++	if (le16_to_cpu(wr->offset) || cfg_len < sizeof(cfg)) {
++		dev_warn(ch->dev->dev,
++			 "%pOF: ignoring partial config write (offset %u, %zu bytes)\n",
++			 ch->np, le16_to_cpu(wr->offset), cfg_len);
++		return 0;
++	}
++
++	memcpy(&cfg, req + LSTP_HDR_LEN + head, sizeof(cfg));
++
++	ret = lstp_uart_tty_check_config(ch, &cfg);
++	if (ret)
++		return ret;
++
++	guard(mutex)(&u->cfg_lock);
++
++	return lstp_uart_tty_apply_config(u, &cfg);
++}
++
++/* ------------------------------------------------------------------ */
++/* Host -> wire								*/
++/* ------------------------------------------------------------------ */
++
++/*
++ * A break only means anything once everything queued ahead of it has left
++ * the shift register, so it is fired from the drain path rather than from
++ * ->receive().  The host side collapses continuous break semantics into a
++ * single fixed length pulse, which is what this produces.
++ */
++static void lstp_uart_tty_send_break(struct lstp_uart_tty *u)
++{
++	struct tty_struct *tty = u->tty;
++	unsigned long us;
++	u32 speed;
++	int ret;
++
++	if (!tty->ops->break_ctl) {
++		dev_warn_ratelimited(u->ch->dev->dev,
++				     "%pOF: %s cannot generate a break\n",
++				     u->ch->np, tty_name(tty));
++		return;
++	}
++
++	scoped_guard(mutex, &u->cfg_lock)
++		speed = le32_to_cpu(u->cfg.speed);
++
++	tty_wait_until_sent(tty,
++			    msecs_to_jiffies(LSTP_UART_TTY_BREAK_DRAIN_MS));
++
++	ret = tty->ops->break_ctl(tty, -1);
++	if (ret) {
++		dev_warn_ratelimited(u->ch->dev->dev,
++				     "%pOF: cannot generate break: %d\n",
++				     u->ch->np, ret);
++		return;
++	}
++
++	/* One character is a start bit, eight data bits and a stop bit. */
++	us = LSTP_UART_TTY_BREAK_CHARS * 10 * USEC_PER_SEC / max(speed, 1u);
++	fsleep(clamp(us, LSTP_UART_TTY_BREAK_MIN_US,
++		     LSTP_UART_TTY_BREAK_MAX_US));
++
++	tty->ops->break_ctl(tty, 0);
++}
++
++static void lstp_uart_tty_tx_work(struct work_struct *work)
++{
++	struct lstp_uart_tty *u = container_of(work, struct lstp_uart_tty,
++					       tx_work);
++	struct tty_struct *tty = u->tty;
++	unsigned int len;
++	bool send_break;
++	ssize_t written;
++
++	/* Checked before @tty is touched: past this the tty is pinned. */
++	if (READ_ONCE(u->aborted))
++		return;
++
++	for (;;) {
++		scoped_guard(spinlock_irqsave, &u->tx_lock)
++			len = kfifo_out_peek(&u->tx_fifo, u->tx_chunk,
++					     sizeof(u->tx_chunk));
++		if (!len)
++			break;
++
++		written = tty->ops->write(tty, u->tx_chunk, len);
++		if (written < 0) {
++			dev_warn_ratelimited(u->ch->dev->dev,
++					     "%pOF: write failed: %zd\n",
++					     u->ch->np, written);
++			scoped_guard(spinlock_irqsave, &u->tx_lock)
++				kfifo_reset_out(&u->tx_fifo);
++			return;
++		}
++
++		scoped_guard(spinlock_irqsave, &u->tx_lock)
++			kfifo_skip_count(&u->tx_fifo, written);
++
++		/*
++		 * The driver write buffer is full.  ->write_wakeup() requeues
++		 * us once the transmitter has made room again.
++		 */
++		if (written < len)
++			return;
++	}
++
++	scoped_guard(spinlock_irqsave, &u->tx_lock) {
++		send_break = u->pending_break > 0;
++		if (send_break)
++			u->pending_break--;
++	}
++
++	if (send_break) {
++		lstp_uart_tty_send_break(u);
++		/* More data or breaks may have queued up behind it. */
++		queue_work(u->wq, &u->tx_work);
++	}
++}
++
++/* ------------------------------------------------------------------ */
++/* Wire -> host								*/
++/* ------------------------------------------------------------------ */
++
++/*
++ * Send one staged message and wait for the host to acknowledge it.  A late
++ * answer to a timed out attempt can be mistaken for the answer to the next
++ * one, which is harmless: at this timeout the host has stopped servicing the
++ * channel anyway.
++ *
++ * Return: 0 once the host acknowledged the message, negative errno otherwise.
++ */
++static int lstp_uart_tty_push(struct lstp_uart_tty *u, u8 tags, u16 len)
++{
++	struct lstp_hdr *hdr = (struct lstp_hdr *)u->rx_msg;
++	struct lstp_channel *ch = u->ch;
++	unsigned int attempt;
++	int ret;
++
++	hdr->channel_id = ch->id;
++	hdr->cmd_status_code = LSTP_UART_WRITE | tags;
++	lstp_hdr_set_payload_len(hdr, len);
++
++	for (attempt = 0; attempt < LSTP_UART_TTY_PUSH_RETRIES; attempt++) {
++		if (READ_ONCE(u->aborted) || !lstp_online(ch->dev))
++			return -ESHUTDOWN;
++
++		reinit_completion(&u->push_done);
++		WRITE_ONCE(u->push_status, LSTP_UART_TTY_NO_STATUS);
++
++		ret = lstp_bridge_send(ch->dev, u->rx_msg, LSTP_HDR_LEN + len);
++		if (ret)
++			return ret;
++
++		if (!wait_for_completion_timeout(&u->push_done,
++						 msecs_to_jiffies(LSTP_UART_TTY_PUSH_TIMEOUT_MS)))
++			return -ETIMEDOUT;
++
++		if (READ_ONCE(u->aborted))
++			return -ESHUTDOWN;
++
++		switch (READ_ONCE(u->push_status)) {
++		case LSTP_ST_SUCCESS:
++			return 0;
++		case LSTP_ST_BUSY:
++		case LSTP_ST_NAK:
++			/* Host buffer full: hold the bytes and try again. */
++			msleep(LSTP_UART_TTY_PUSH_RETRY_MS);
++			break;
++		default:
++			return -EIO;
++		}
++	}
++
++	return -EBUSY;
++}
++
++static void lstp_uart_tty_rx_work(struct work_struct *work)
++{
++	struct lstp_uart_tty *u = container_of(work, struct lstp_uart_tty,
++					       rx_work);
++	u8 *payload = u->rx_msg + LSTP_HDR_LEN;
++	unsigned int len;
++	size_t chunk;
++	u8 tags;
++	int ret;
++
++	/* Checked before @tty is touched: past this the tty is pinned. */
++	if (READ_ONCE(u->aborted))
++		return;
++
++	/* Re-read every round: the negotiated speed can change on a replug. */
++	chunk = min_t(size_t, lstp_max_payload(u->ch->dev), LSTP_MAX_PAYLOAD);
++
++	for (;;) {
++		scoped_guard(spinlock_irqsave, &u->rx_lock) {
++			len = kfifo_out(&u->rx_fifo, payload, chunk);
++			tags = u->rx_tags;
++			u->rx_tags = 0;
++		}
++
++		if (!len && !tags)
++			break;
++
++		ret = lstp_uart_tty_push(u, tags, len);
++		if (!ret)
++			continue;
++
++		/*
++		 * The host is not taking the data.  Drop what is queued in one
++		 * go rather than timing out byte after byte, and let the next
++		 * message that does get through report the loss.
++		 */
++		dev_warn_ratelimited(u->ch->dev->dev,
++				     "%pOF: dropping received data: %d\n",
++				     u->ch->np, ret);
++		scoped_guard(spinlock_irqsave, &u->rx_lock) {
++			kfifo_reset_out(&u->rx_fifo);
++			u->rx_tags |= LSTP_UART_TAG_TX_OVERRUN;
++		}
++		break;
++	}
++
++	/*
++	 * The FIFO has room again.  ->receive_buf2() returns short when it
++	 * fills up and the tty then sits on the rest until it is pushed once
++	 * more, so this is what keeps the wire moving.
++	 */
++	tty_flip_buffer_push(u->tty->port);
++}
++
++/* ------------------------------------------------------------------ */
++/* Message handling							*/
++/* ------------------------------------------------------------------ */
++
++static int lstp_uart_tty_receive(struct lstp_channel *ch, const u8 *req,
++				 size_t len)
++{
++	const struct lstp_hdr *hdr = (const struct lstp_hdr *)req;
++	struct lstp_uart_tty *u = ch->priv;
++	const u8 *payload = req + LSTP_HDR_LEN;
++	u16 payload_len = lstp_hdr_payload_len(hdr);
++	u8 code = hdr->cmd_status_code;
++	bool queued = false;
++
++	/* The host acknowledging one of our receive pushes. */
++	if (code & LSTP_RESPONSE_BIT) {
++		WRITE_ONCE(u->push_status, code & ~LSTP_RESPONSE_BIT);
++		complete(&u->push_done);
++		return 0;
++	}
++
++	if ((code & LSTP_UART_CMD_MASK) != LSTP_UART_WRITE)
++		return -EOPNOTSUPP;
++
++	/*
++	 * All or nothing: a partial accept followed by a NAK would make the
++	 * host resend bytes that already went out on the wire.
++	 */
++	scoped_guard(spinlock_irqsave, &u->tx_lock) {
++		if (payload_len <= kfifo_avail(&u->tx_fifo)) {
++			if (payload_len)
++				kfifo_in(&u->tx_fifo, payload, payload_len);
++			if (code & LSTP_UART_TAG_GEN_BREAK)
++				u->pending_break++;
++			queued = true;
++		}
++	}
++
++	/* NAK: the host retries once the wire has drained. */
++	if (!queued)
++		return -ENXIO;
++
++	queue_work(u->wq, &u->tx_work);
++
++	/*
++	 * Acknowledge acceptance, not transmission: the bytes are in a FIFO
++	 * on their way out, exactly as a local UART would report them.
++	 */
++	return lstp_send_response(ch, LSTP_ST_SUCCESS, NULL, 0);
++}
++
++/* ------------------------------------------------------------------ */
++/* Lifecycle								*/
++/* ------------------------------------------------------------------ */
++
++/*
++ * Unblock and stop both workers.  On return neither runs, and any run that a
++ * line discipline callback queues afterwards returns without touching the tty,
++ * which is what makes it safe to close the port next.
++ */
++static void lstp_uart_tty_quiesce(struct lstp_uart_tty *u)
++{
++	WRITE_ONCE(u->aborted, true);
++	/* Wake the single push waiter; no acknowledgement is coming. */
++	complete(&u->push_done);
++
++	cancel_work_sync(&u->rx_work);
++	cancel_work_sync(&u->tx_work);
++}
++
++/*
++ * The host went away.  Both queues describe traffic for a link that no longer
++ * exists, so they are dropped rather than replayed to whoever connects next.
++ */
++static void lstp_uart_tty_reset(struct lstp_channel *ch)
++{
++	struct lstp_uart_tty *u = ch->priv;
++
++	if (!u)
++		return;
++
++	lstp_uart_tty_quiesce(u);
++
++	tty_driver_flush_buffer(u->tty);
++
++	scoped_guard(spinlock_irqsave, &u->tx_lock) {
++		kfifo_reset(&u->tx_fifo);
++		u->pending_break = 0;
++	}
++	scoped_guard(spinlock_irqsave, &u->rx_lock) {
++		kfifo_reset(&u->rx_fifo);
++		u->rx_tags = 0;
++	}
++
++	/* No waiter is left, so the completion can be re-armed. */
++	reinit_completion(&u->push_done);
++	WRITE_ONCE(u->push_status, LSTP_UART_TTY_NO_STATUS);
++	WRITE_ONCE(u->aborted, false);
++
++	/* Receiving again: take whatever the tty held back while we were full. */
++	tty_flip_buffer_push(u->tty->port);
++}
++
++static int lstp_uart_tty_probe(struct lstp_channel *ch)
++{
++	struct device *dev = ch->dev->dev;
++	struct lstp_uart_config cfg;
++	struct lstp_uart_tty *u;
++	struct tty_struct *tty;
++	dev_t devno;
++	int ret;
++
++	ret = lstp_uart_tty_find_port(ch, &devno);
++	if (ret)
++		return ret;
++
++	u = kzalloc(sizeof(*u), GFP_KERNEL);
++	if (!u)
++		return -ENOMEM;
++
++	u->ch = ch;
++	mutex_init(&u->cfg_lock);
++	spin_lock_init(&u->tx_lock);
++	spin_lock_init(&u->rx_lock);
++	init_completion(&u->push_done);
++	u->push_status = LSTP_UART_TTY_NO_STATUS;
++	INIT_WORK(&u->tx_work, lstp_uart_tty_tx_work);
++	INIT_WORK(&u->rx_work, lstp_uart_tty_rx_work);
++
++	ret = lstp_uart_tty_parse_dt_config(ch, &cfg);
++	if (ret)
++		goto err_free;
++
++	ret = kfifo_alloc(&u->tx_fifo, LSTP_UART_TTY_FIFO_SIZE, GFP_KERNEL);
++	if (ret)
++		goto err_free;
++
++	ret = kfifo_alloc(&u->rx_fifo, LSTP_UART_TTY_FIFO_SIZE, GFP_KERNEL);
++	if (ret)
++		goto err_tx_fifo;
++
++	/*
++	 * The receive worker sleeps waiting for the host to acknowledge each
++	 * message, so it must be able to run concurrently with the transmit
++	 * drain that the write wakeup kicks.
++	 */
++	u->wq = alloc_workqueue("lstp-uart-tty%u", WQ_UNBOUND, 0, ch->id);
++	if (!u->wq) {
++		ret = -ENOMEM;
++		goto err_rx_fifo;
++	}
++
++	/*
++	 * Exclusive: for as long as the channel exists the port belongs to the
++	 * LSTP host, and a userspace open of the same tty would interleave its
++	 * bytes with the tunnel's.  Returns with the tty lock held.
++	 */
++	tty = tty_kopen_exclusive(devno);
++	if (IS_ERR(tty)) {
++		ret = PTR_ERR(tty);
++		dev_err(dev, "%pOF: cannot claim %u:%u: %d\n", ch->np,
++			MAJOR(devno), MINOR(devno), ret);
++		goto err_wq;
++	}
++	u->tty = tty;
++
++	ret = tty->ops->open ? tty->ops->open(tty, NULL) : -ENODEV;
++	if (ret) {
++		tty_unlock(tty);
++		dev_err(dev, "%pOF: cannot open %s: %d\n", ch->np,
++			tty_name(tty), ret);
++		goto err_kclose;
++	}
++	u->tty_opened = true;
++	clear_bit(TTY_HUPPED, &tty->flags);
++	tty_unlock(tty);
++
++	scoped_guard(mutex, &lstp_uart_tty_bind_lock) {
++		lstp_uart_tty_binding = u;
++		ret = tty_set_ldisc(tty, LSTP_UART_TTY_LDISC);
++		lstp_uart_tty_binding = NULL;
++	}
++	if (ret) {
++		dev_err(dev, "%pOF: cannot set the LSTP line discipline on %s: %d\n",
++			ch->np, tty_name(tty), ret);
++		goto err_close;
++	}
++	u->ldisc_set = true;
++
++	/* From here on the transmitter tells us when it has room again. */
++	set_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
++
++	scoped_guard(mutex, &u->cfg_lock)
++		ret = lstp_uart_tty_apply_config(u, &cfg);
++	if (ret)
++		goto err_ldisc;
++
++	ch->priv = u;
++
++	return 0;
++
++err_ldisc:
++	lstp_uart_tty_quiesce(u);
++	clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
++err_close:
++	tty_lock(tty);
++	if (tty->ops->close)
++		tty->ops->close(tty, NULL);
++	tty_unlock(tty);
++err_kclose:
++	/* Releases the line discipline, so no callback runs after this. */
++	tty_kclose(tty);
++err_wq:
++	destroy_workqueue(u->wq);
++err_rx_fifo:
++	kfifo_free(&u->rx_fifo);
++err_tx_fifo:
++	kfifo_free(&u->tx_fifo);
++err_free:
++	mutex_destroy(&u->cfg_lock);
++	kfree(u);
++	return ret;
++}
++
++static void lstp_uart_tty_remove(struct lstp_channel *ch)
++{
++	struct lstp_uart_tty *u = ch->priv;
++	struct tty_struct *tty;
++
++	if (!u)
++		return;
++
++	tty = u->tty;
++
++	/*
++	 * Stop the workers first: they are the only users of @tty outside the
++	 * line discipline callbacks, and those stop when tty_kclose() releases
++	 * the discipline below.
++	 */
++	lstp_uart_tty_quiesce(u);
++
++	if (u->ldisc_set)
++		clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
++
++	tty_lock(tty);
++	if (u->tty_opened && tty->ops->close)
++		tty->ops->close(tty, NULL);
++	tty_ldisc_flush(tty);
++	tty_unlock(tty);
++
++	tty_kclose(tty);
++
++	/* Drains the no-op runs a late callback may have queued. */
++	destroy_workqueue(u->wq);
++	kfifo_free(&u->rx_fifo);
++	kfifo_free(&u->tx_fifo);
++	mutex_destroy(&u->cfg_lock);
++	kfree(u);
++	ch->priv = NULL;
++}
++
++const struct lstp_channel_ops lstp_uart_tty_ops = {
++	.probe		= lstp_uart_tty_probe,
++	.remove		= lstp_uart_tty_remove,
++	.reset		= lstp_uart_tty_reset,
++	.receive	= lstp_uart_tty_receive,
++	.read_config	= lstp_uart_tty_read_config,
++	.write_config	= lstp_uart_tty_write_config,
++};
+diff --git a/drivers/usb/misc/lstp_bridge/lstp.h b/drivers/usb/misc/lstp_bridge/lstp.h
+index e626ce4ff11d..eb67ecf22dce 100644
+--- a/drivers/usb/misc/lstp_bridge/lstp.h
++++ b/drivers/usb/misc/lstp_bridge/lstp.h
+@@ -440,6 +440,7 @@ extern const struct lstp_channel_ops lstp_i2c_ops;
+ extern const struct lstp_channel_ops lstp_gpio_ops;
+ extern const struct lstp_channel_ops lstp_spi_ops;
+ extern const struct lstp_channel_ops lstp_uart_ops;
++extern const struct lstp_channel_ops lstp_uart_tty_ops;
+ extern const struct lstp_channel_ops lstp_vuart_ops;
+ 
+ /*
+@@ -460,6 +461,15 @@ void lstp_spi_driver_unregister(void);
+ int lstp_uart_driver_register(void);
+ void lstp_uart_driver_unregister(void);
+ 
++/* lstp-uart-driver.c takes the same wire the other way round: instead of
++ * binding below the tty layer it claims the tty of the controller the channel
++ * points at and installs a line discipline of its own on it, which is what
++ * makes the full character framing of the configuration blob settable.  The
++ * discipline is registered once for all channels of this type.
++ */
++int lstp_uart_tty_driver_register(void);
++void lstp_uart_tty_driver_unregister(void);
++
+ /* lstp-vuart.c owns a uart_driver of its own: a virtual UART channel has no
+  * controller to bind to, it *is* the controller behind /dev/ttyVUARTn.
+  */
+-- 
+2.34.1
+
