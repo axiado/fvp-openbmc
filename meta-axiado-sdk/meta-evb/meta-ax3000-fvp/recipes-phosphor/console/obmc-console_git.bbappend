@@ -1,10 +1,10 @@
 FILESEXTRAPATHS:append := ":${THISDIR}/${PN}"
 
-OBMC_CONSOLE_HOST_TTY = "ttyPS2"
+OBMC_CONSOLE_HOST_TTY = "ttyLSTP4"
 
 SRC_URI:append = " \
-    file://server.ttyPS2.conf \
-    file://80-obmc-console-ttyPS2-uart.rules \
+    file://server.ttyLSTP4.conf \
+    file://80-obmc-console-ttyLSTP4-uart.rules \
 "
 
 do_install:append() {
@@ -12,4 +12,4 @@ do_install:append() {
     install -m 0644 ${UNPACKDIR}/*.rules ${D}${sysconfdir}/udev/rules.d/
 }
 
-FILES_${PN} = "${sysconfdir}/udev/rules.d/80-obmc-console-ttyPS2-uart.rules"
+FILES_${PN} = "${sysconfdir}/udev/rules.d/80-obmc-console-ttyLSTP4-uart.rules"

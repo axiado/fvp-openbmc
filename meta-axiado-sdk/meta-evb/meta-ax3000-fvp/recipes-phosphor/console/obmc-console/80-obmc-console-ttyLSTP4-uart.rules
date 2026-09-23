@@ -1,0 +1,1 @@
+SUBSYSTEM=="tty", KERNEL=="ttyLSTP4", ENV{SYSTEMD_WANTS}="obmc-console@ttyLSTP4", TAG+="systemd"
