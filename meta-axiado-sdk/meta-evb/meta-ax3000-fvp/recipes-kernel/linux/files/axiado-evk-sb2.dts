@@ -45,3 +45,26 @@
 	};
 
 };
+
+&usb2_0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	lstp_bridge@1 {
+		reg = <1>;
+
+		interface@0 {
+			reg = <0>;
+
+			channel@3 {
+				compatible = "nvidia,lstp-i2c";
+				reg = <3>;
+
+				lsm6ds3tr@6b {
+					compatible = "st,lsm6ds3";
+					reg = <0x6b>;
+				};
+			};
+		};
+	};
+};
