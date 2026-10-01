@@ -32,7 +32,7 @@ channels:
       ngpio: 4
       pins:
         0:
-          name: fvp_gpio_output
+          name: test_gpio_out
           direction: output
           default_output: high
           output_drive: push_pull
@@ -44,7 +44,7 @@ channels:
           input_debounce_us: 0
           led_support: not_led
         1:
-          name: fvp_gpio_input
+          name: test_gpio_in
           direction: input
           default_output: low
           output_drive: push_pull

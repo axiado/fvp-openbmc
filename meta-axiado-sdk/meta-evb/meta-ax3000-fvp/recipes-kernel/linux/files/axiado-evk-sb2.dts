@@ -56,6 +56,17 @@
 		interface@0 {
 			reg = <0>;
 
+			channel@2 {
+				compatible = "nvidia,lstp-gpio";
+				reg = <2>;
+
+				gpio-line-names =
+				/*0-7*/       "test_gpio_out","test_gpio_in","pwr_req","pgood_ok","","","","",
+				/*8-15*/       "","","","","","","","",
+				/*16-23*/       "","","","","","","","",
+				/*24-31*/       "","","","","","","","";
+			};
+
 			channel@3 {
 				compatible = "nvidia,lstp-i2c";
 				reg = <3>;
