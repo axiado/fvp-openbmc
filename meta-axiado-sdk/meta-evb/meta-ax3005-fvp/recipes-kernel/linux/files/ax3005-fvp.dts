@@ -147,6 +147,39 @@
 			nvidia,parity = "none";
 			nvidia,flow-control = "none";
 		};
+
+                channel@9 {
+                        reg = <9>;
+                        nvidia,channel-type = "virtual-uart";
+                        nvidia,channel-name = "VUART1";
+                        current-speed = <115200>;
+                        nvidia,data-bits = <8>;
+                        nvidia,stop-bits = <1>;
+                        nvidia,parity = "none";
+                        nvidia,flow-control = "none";
+                };
+
+                channel@10 {
+                        reg = <10>;
+                        nvidia,channel-type = "virtual-uart";
+                        nvidia,channel-name = "VUART2";
+                        current-speed = <115200>;
+                        nvidia,data-bits = <8>;
+                        nvidia,stop-bits = <1>;
+                        nvidia,parity = "none";
+                        nvidia,flow-control = "none";
+                };
+
+                channel@11 {
+                        reg = <11>;
+                        nvidia,channel-type = "virtual-uart";
+                        nvidia,channel-name = "VUART3";
+                        current-speed = <115200>;
+                        nvidia,data-bits = <8>;
+                        nvidia,stop-bits = <1>;
+                        nvidia,parity = "none";
+                        nvidia,flow-control = "none";
+                };
         };
 };
 
