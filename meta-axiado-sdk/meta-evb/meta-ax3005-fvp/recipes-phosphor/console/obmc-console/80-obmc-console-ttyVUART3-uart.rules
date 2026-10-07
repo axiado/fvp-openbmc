@@ -1,0 +1,1 @@
+SUBSYSTEM=="tty", KERNEL=="ttyVUART3", ENV{SYSTEMD_WANTS}="obmc-console@ttyVUART3", TAG+="systemd"
