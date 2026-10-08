@@ -37,40 +37,21 @@
                         #address-cells = <1>;
                         #size-cells = <0>;
 
-                        /* gpio4 offset 0 == global line 128 */
+                        /* J39, gpio4 offset 0 == global line 128, host view: gpio output */
                         pin@0 {
                                 reg = <0>;
-                                label = "fvp_gpio_out";
+                                label = "host_pgood_ok";
                                 gpios = <&gpio4 0 GPIO_ACTIVE_HIGH>;
                                 nvidia,allow-direction-control;
                                 nvidia,allow-set-irq;
                                 nvidia,drive = "push-pull";
                         };
 
-                        /* gpio4 offset 1 == global line 129 */
+                        /* J39, gpio4 offset 1 == global line 129, host view: gpio input */
                         pin@1 {
                                 reg = <1>;
-                                label = "fvp_gpio_in";
+                                label = "host_pwr_req";
                                 gpios = <&gpio4 1 GPIO_ACTIVE_HIGH>;
-                                nvidia,allow-set-irq;
-                                nvidia,bias = "pull-up";
-                        };
-
-                        /* gpio4 offset 24 == global line 152 */
-                        pin@2 {
-                                reg = <2>;
-                                label = "pwr_req";
-                                gpios = <&gpio4 24 GPIO_ACTIVE_HIGH>;
-                                nvidia,allow-direction-control;
-                                nvidia,allow-set-irq;
-                                nvidia,drive = "push-pull";
-                        };
-
-                        /* gpio4 offset 25 == global line 153 */
-                        pin@3 {
-                                reg = <3>;
-                                label = "pgood_ok";
-                                gpios = <&gpio4 25 GPIO_ACTIVE_HIGH>;
                                 nvidia,allow-set-irq;
                                 nvidia,bias = "pull-up";
                         };
@@ -198,7 +179,7 @@
 	compatible = "cdns,gpio-r1p02";
 
 	gpio-line-names =
-	/*128-135*/       "fvp_gpio_out","fvp_gpio_in","","","","","","",
+	/*128-135*/       "host_pgood_ok","host_pwr_req","","","","","","",
 	/*136-143*/       "","","","","","","","",
 	/*144-151*/       "","","","","","","","",
 	/*152-159*/       "pwr_req","pgood_ok","","","","","","";
